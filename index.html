@@ -125,6 +125,14 @@ tr.flash td{background:var(--accent-soft)}
 .legend .bar-k,.legend .bar-s{display:inline-block;width:18px;height:6px;border-radius:0 2px 2px 0;margin-right:5px;vertical-align:2px}
 .legend .bar-k{background:var(--s1)}.legend .bar-s{background:var(--s2)}
 .chartnotes{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+.site-foot{background:var(--surface);border-top:1px solid var(--line);margin-top:8px}
+.site-foot .wrap{padding-block:20px 28px;display:flex;flex-direction:column;gap:10px}
+.site-foot .fnote{font-size:12px;color:var(--muted);max-width:80ch}
+.site-foot .frow{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;font-size:13px;color:var(--fg2)}
+.site-foot .xlink{display:inline-flex;align-items:center;gap:6px;color:var(--fg);text-decoration:none;border:1px solid var(--line);padding:4px 12px;border-radius:999px}
+.site-foot .xlink:hover{border-color:var(--accent);color:var(--accent)}
+.site-foot .xlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.site-foot .xmark{font-weight:700}
 details summary{cursor:pointer;color:var(--fg2);font-size:14px}
 details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fg2);max-width:76ch}
 .fbar .fhead{display:none}
@@ -226,6 +234,16 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
   </details>
 </section>
 </main>
+
+<footer class="site-foot gut">
+  <div class="wrap">
+    <p class="fnote">掲載データは各不動産会社の売出情報をもとに集計したもので、正確性や最新性を保証するものではありません。購入などの判断は、必ず管理規約・重要事項説明書などでご確認ください。</p>
+    <div class="frow">
+      <span>© 2026 KIRIN</span>
+      <a class="xlink" href="https://x.com/kirinsan4567" target="_blank" rel="noopener"><span class="xmark" aria-hidden="true">𝕏</span>@kirinsan4567</a>
+    </div>
+  </div>
+</footer>
 
 <script>
 /* ===== 設定 ===== */
