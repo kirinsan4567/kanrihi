@@ -127,7 +127,27 @@ tr.flash td{background:var(--accent-soft)}
 .chartnotes{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
 details summary{cursor:pointer;color:var(--fg2);font-size:14px}
 details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fg2);max-width:76ch}
-@media (max-width:560px){input[type=search]{width:100%}.fbar .wrap{gap:6px 10px}}
+.fbar .fhead{display:none}
+.fclose{display:none}
+.fbtn{font:inherit;font-size:14px;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--surface);padding:6px 14px;border-radius:999px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.fbtn .caret{font-size:10px;transition:transform .15s}
+.fbtn[aria-expanded="true"] .caret{transform:rotate(180deg)}
+.fsum{font-size:12.5px;color:var(--fg2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tip.pinned{pointer-events:auto}
+.tip .tipgo{font:inherit;font-size:12px;margin-top:6px;padding:3px 10px;border:1px solid var(--bg);background:transparent;color:var(--bg);border-radius:999px;cursor:pointer}
+.tip .tipx{position:absolute;top:2px;right:6px;font:inherit;font-size:14px;background:none;border:0;color:var(--bg);cursor:pointer;padding:2px 4px}
+@media (max-width:760px){
+  .fbar .fhead{display:flex;gap:10px;align-items:center;padding-block:8px}
+  .fbar .fpanel{display:none;padding-block:4px 12px;max-height:65vh;overflow-y:auto;gap:8px 10px}
+  .fbar.open .fpanel{display:flex}
+  .fclose{display:inline-block;width:100%;margin-top:4px}
+  input[type=search]{width:100%}
+  .chip{font-size:12.5px;padding:3px 9px}
+  .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px}
+  .kpi .val{font-size:19px}
+  .chart{padding:4px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -143,7 +163,8 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
 </header>
 
 <div class="fbar gut" id="fbar">
-  <div class="wrap">
+  <div class="fhead wrap"><button type="button" class="fbtn" id="ftoggle" aria-expanded="false" aria-controls="fpanel">絞り込み<span class="caret">▼</span></button><span class="fsum" id="fsum"></span></div>
+  <div class="wrap fpanel" id="fpanel">
     <div class="fgroup" role="group" aria-label="エリア"><span class="flab">エリア</span><span id="fArea"></span></div>
     <div class="fgroup"><span class="flab">区</span><select id="fWard" aria-label="区"><option value="">すべて</option></select></div>
     <div class="fgroup" role="group" aria-label="区分"><span class="flab">区分</span><span id="fType"></span></div>
@@ -153,6 +174,7 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
     <div class="fgroup"><button type="button" class="chip" id="f40" aria-pressed="false">40㎡以上</button><button type="button" class="chip" id="fLab" aria-pressed="true">名前を表示</button></div>
     <input type="search" id="q" placeholder="物件名で検索" aria-label="物件名で検索">
     <button type="button" class="link" id="reset">条件をリセット</button>
+    <button type="button" class="btn fclose" id="fclose">閉じて結果を見る</button>
   </div>
 </div>
 
@@ -176,7 +198,7 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
   </div>
   <div class="legend"><span><i style="background:var(--s1)"></i>タワー（20階以上）</span><span><i style="background:var(--s2)"></i>非タワー</span><span>白抜き＝専有40㎡未満</span></div>
   <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
-  <ul class="note chartnotes"><li>点をクリックすると一覧の該当行に移動します。初期表示ラベルは1000戸以上の大規模物件と飛値のマンションのみ表示しています。（20棟以下に絞られた場合は全物件表示）</li><li>点にカーソルを合わせると名前と数値が出ます。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
+  <ul class="note chartnotes"><li>点をタップ（クリック）すると、マンション名と数値が表示されます。「一覧で見る」を押すと一覧の該当行に移動します。初期表示ラベルは1000戸以上の大規模物件と飛値のマンションのみ表示しています。（20棟以下に絞られた場合は全物件表示）</li><li>パソコンでは点にカーソルを合わせるだけでも名前と数値が出ます。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
 </section>
 
 <section>
@@ -267,6 +289,18 @@ function buildFilters(){
     $("#f40").setAttribute("aria-pressed",false);render();};
 }
 function ageOk(a){ if(F.age==="all")return true; if(a==null)return false; const hi=+F.age, lo={10:0,20:10,30:20,99:30}[F.age]; return F.age==="10"?a<=10:(a>lo&&a<=hi); }
+function fsum(){
+  const a=[];
+  if(F.areas.size) a.push([...F.areas].join("・"));
+  if(F.ward) a.push(F.ward);
+  if(F.type!=="all") a.push(F.type==="t"?"タワー":"非タワー");
+  if(F.age!=="all") a.push("築"+AGES.find(x=>x[0]===F.age)[1]);
+  if(F.fl.size) a.push(FLS.filter(x=>F.fl.has(x[0])).map(x=>x[1]).join("・"));
+  if(F.un.size) a.push(UNS.filter(x=>F.un.has(x[0])).map(x=>x[1]).join("・"));
+  if(F.big) a.push("40㎡以上");
+  if(F.q) a.push(`「${F.q}」`);
+  return a.length?a.join("／"):"条件なし";
+}
 function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
 function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
 function filtered(){ return DATA.filter(x=>(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||x.name.toLowerCase().includes(F.q.toLowerCase()))); }
@@ -276,6 +310,7 @@ const med=a=>{a=a.filter(v=>v!=null&&!isNaN(v)).sort((p,q)=>p-q); if(!a.length)r
 function render(){
   const R=filtered(), V=R.filter(x=>x.shuzen>0);
   $("#cnt").textContent=`対象 ${R.length}棟 ／ 全${DATA.length}棟`;
+  $("#fsum").textContent=`${fsum()}｜対象 ${R.length}棟`;
   $$(".cntN").forEach(e=>e.textContent=R.length===DATA.length?`全${DATA.length}棟を表示中`:`対象 ${R.length}棟（全${DATA.length}棟中）`);
   renderKpis(V); drawChart(V); renderFamous(V); renderTable(R);
 }
@@ -289,7 +324,7 @@ function renderKpis(V){
 function R_len(){return filtered().length;}
 
 function drawChart(V){
-  const key=metric+"_", W=980,H=560,ml=54,mr=24,mt=22,mb=42;
+  const narrow=$("#chart").clientWidth<620; const key=metric+"_", W=narrow?460:980,H=narrow?520:560,ml=narrow?44:54,mr=narrow?10:24,mt=22,mb=42;
   const el=$("#chart"), tip=$("#tip"); el.querySelector("svg")?.remove();
   if(!V.length){el.insertAdjacentHTML("afterbegin",`<svg viewBox="0 0 ${W} 120"><text x="${W/2}" y="64" text-anchor="middle" font-size="14" fill="var(--muted)">条件に合う物件はありません</text></svg>`);return;}
   const vals=V.map(x=>x[key]).sort((a,b)=>a-b);
@@ -319,11 +354,13 @@ function drawChart(V){
   if(metric==="s"&&338<=cap) s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(338)}" y2="${Y(338)}" stroke="var(--fg2)" stroke-dasharray="5 4"/><text x="${W-mr-6}" y="${Y(338)-6}" text-anchor="end" font-size="11" fill="var(--fg2)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">ガイドライン 20階以上平均 338</text>`;
   for(const p of V){
     const c=p.tower?"var(--s1)":"var(--s2)", small=p.area<40, x=X(p.age||0), y=Y(p[key]);
-    s+=`<circle class="pt" data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"/>`;
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"/>`;
   }
+  // 当たり判定（指でも押しやすいように点より大きい透明の円）
+  for(const p of V) s+=`<circle class="pt" data-id="${p.id}" cx="${X(p.age||0).toFixed(1)}" cy="${Y(p[key]).toFixed(1)}" r="9" fill="transparent"/>`;
   // ラベル：重なりを避けて上下にずらす
   const labSet=!showLab?[]:(V.length<=LAB_MAX?V:V.filter(p=>p.units>=BIG_UNITS||p[key]>cap));
-  const fs=V.length<=LAB_MAX?12:10.5;
+  const fs=narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
   const labs=labSet.map(p=>({p,x:X(p.age||0),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
   const placed=[];
   for(const L of labs){
@@ -334,14 +371,30 @@ function drawChart(V){
     s+=`<text x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}</text>`;
   }
   s+=`</svg>`; el.insertAdjacentHTML("afterbegin",s);
+  pinned=null; tip.hidden=true; tip.classList.remove("pinned");
+  const show=(c,p,pin)=>{
+    tip.innerHTML=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}<br>${p.area}㎡ 管理${p.k_} / 修繕${p.s_} / 合計${p.t_} 円/㎡`+(pin?`<br><button type="button" class="tipgo">一覧で見る</button><button type="button" class="tipx" aria-label="閉じる">×</button>`:"");
+    tip.classList.toggle("pinned",pin); tip.hidden=false;
+    const r=el.getBoundingClientRect(), b=c.getBoundingClientRect(), tw=Math.min(260,r.width-16);
+    tip.style.maxWidth=tw+"px";
+    let l=b.left-r.left+b.width/2+8; if(l+tw>r.width-4) l=b.left-r.left+b.width/2-tw-8; l=Math.max(4,l);
+    tip.style.left=l+"px"; tip.style.top="0px"; const th=tip.offsetHeight; let tp=b.top-r.top-th-6; if(tp<4) tp=b.top-r.top+b.height+6; tip.style.top=tp+"px";
+    if(pin){ tip.querySelector(".tipgo").onclick=e=>{e.stopPropagation(); unpin(); jump(p.id);}; tip.querySelector(".tipx").onclick=e=>{e.stopPropagation(); unpin();}; }
+  };
   el.querySelectorAll(".pt").forEach(c=>{
     const p=DATA.find(d=>d.id==c.dataset.id);
-    c.addEventListener("mouseenter",()=>{tip.innerHTML=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}<br>${p.area}㎡ 管理${p.k_} / 修繕${p.s_} / 合計${p.t_} 円/㎡`;
-      tip.hidden=false; const r=el.getBoundingClientRect(), b=c.getBoundingClientRect(); let l=b.left-r.left+14; if(l>r.width-280)l=b.left-r.left-280; tip.style.left=Math.max(4,l)+"px"; tip.style.top=(b.top-r.top-10)+"px";});
-    c.addEventListener("mouseleave",()=>tip.hidden=true);
-    c.addEventListener("click",()=>jump(p.id));
+    c.addEventListener("mouseenter",()=>{ if(!pinned) show(c,p,false); });
+    c.addEventListener("mouseleave",()=>{ if(!pinned) tip.hidden=true; });
+  });
+  // タップ／クリック：いちばん近い点を選ぶ（点が重なっていても指で選びやすい）
+  el.querySelector("svg").addEventListener("click",e=>{
+    let best=null,bd=1e9;
+    el.querySelectorAll(".pt").forEach(c=>{ const r=c.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2, d=Math.hypot(cx-e.clientX,cy-e.clientY); if(d<bd){bd=d;best=c;} });
+    if(best&&bd<=24){ const p=DATA.find(d=>d.id==best.dataset.id); pinned=p.id; show(best,p,true); } else unpin();
   });
 }
+let pinned=null;
+function unpin(){ pinned=null; const tip=$("#tip"); tip.hidden=true; tip.classList.remove("pinned"); }
 function short(n){n=n.replace(/\s(\S*棟|ウエスト|イースト|ノースタワー|サウスタワー|SEA TOWER|ブリーズタワー|ブライトタワー)$/,"");return n.length>15?n.slice(0,14)+"…":n;}
 function jump(id){ const tr=document.querySelector(`#tbl tr[data-id="${id}"]`); if(!tr)return; tr.scrollIntoView({block:"center",behavior:"smooth"}); tr.classList.add("flash"); setTimeout(()=>tr.classList.remove("flash"),1600); }
 
@@ -376,6 +429,10 @@ function renderTable(R){
 document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{metric=b.dataset.m; $$("[data-m]").forEach(x=>x.setAttribute("aria-pressed",x===b)); drawChart(filtered().filter(x=>x.shuzen>0));});
 
 buildFilters(); buildHead(); load();
+let _nw=null; window.addEventListener("resize",()=>{const n=$("#chart").clientWidth<620; if(n!==_nw){_nw=n; render();}});
+const setOpen=o=>{ $("#fbar").classList.toggle("open",o); $("#ftoggle").setAttribute("aria-expanded",o); };
+$("#ftoggle").onclick=()=>setOpen(!$("#fbar").classList.contains("open"));
+$("#fclose").onclick=()=>{ setOpen(false); window.scrollTo({top:$("#kpis").getBoundingClientRect().top+window.scrollY-120,behavior:"smooth"}); };
 </script>
 
 </body>
