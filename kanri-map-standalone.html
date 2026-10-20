@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>東京マンション管理費・修繕費マップ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 上に固定のフィルターバー。その下に 中央値 → 散布図 → 有名物件（エリア×新旧）→ 全件リスト の順。データはページ内に埋め込み（更新はシートを直してHTMLを作り直す） */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --fg:#14202b; --fg2:#4a5866; --muted:#7a8794;
+  --line:#d9e0e6; --accent:#1f5f99; --accent-soft:#e3edf6; --star:#b7791f;
+  --s1:#2a78d6; --s2:#eb6834; --warn:#b5481c; --ok:#2f7d4f;
+  --f-display:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11161b; --surface:#182029; --fg:#e8edf2; --fg2:#b4c0cc; --muted:#8693a0;
+  --line:#2a3541; --accent:#7fb3e6; --accent-soft:#1d2d3d; --star:#e0a94a;
+  --s1:#3987e5; --s2:#d95926; --warn:#f08a5d; --ok:#6cc08f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b; --surface:#182029; --fg:#e8edf2; --fg2:#b4c0cc; --muted:#8693a0;
+  --line:#2a3541; --accent:#7fb3e6; --accent-soft:#1d2d3d; --star:#e0a94a;
+  --s1:#3987e5; --s2:#d95926; --warn:#f08a5d; --ok:#6cc08f; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1120px;margin:0 auto}
+main.wrap{padding-block:28px 64px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.35;text-wrap:balance}
+h1{font-size:clamp(24px,3.6vw,32px);font-weight:900}
+h2{font-size:21px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0;max-width:70ch}
+.sub{color:var(--fg2);font-size:14px}
+.note{font-size:12.5px;color:var(--muted)}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+section{display:flex;flex-direction:column;gap:14px;min-width:0}
+.hd{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+
+/* header + filter bar */
+header.top{background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:20px 14px;display:flex;flex-direction:column;gap:8px}
+.status{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);align-items:center}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px}
+.dot.live{background:var(--ok)}
+.fbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:0 2px 8px rgba(20,32,43,.06)}
+.fbar .wrap{padding-block:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.fgroup{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.flab{font-size:11.5px;color:var(--muted);letter-spacing:.06em;margin-right:2px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--bg);color:var(--fg2);padding:3px 11px;border-radius:999px;cursor:pointer;line-height:1.6}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.chip.star[aria-pressed="true"]{background:var(--star);border-color:var(--star)}
+select,input[type=search],input[type=text],input[type=number],input[type=password],input[type=month],input[type=url]{font:inherit;font-size:13px;padding:5px 9px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:4px;min-width:0}
+input[type=search]{width:170px}
+.btn{font:inherit;font-size:13px;padding:5px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;border-radius:4px}
+.btn.solid{background:var(--accent);color:var(--surface)}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+.btn.danger.armed{background:var(--warn);color:var(--surface)}
+.link{font:inherit;font-size:12.5px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0}
+:is(.chip,.btn,select,input,.link,th button):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+.kpi .lab{font-size:12px;color:var(--fg2)}
+.kpi .val{font-family:var(--f-num);font-size:22px;font-weight:500}
+.kpi .val small{font-size:12px;color:var(--muted)}
+.kpi .cmp{font-size:12px;color:var(--fg2)}
+
+/* chart */
+.chart{background:var(--surface);border:1px solid var(--line);padding:10px;position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.chart .pt{cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--fg2);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;padding:8px 10px;line-height:1.5;max-width:270px;z-index:3}
+.seg{display:inline-flex;border:1px solid var(--line);background:var(--surface);border-radius:4px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--fg2);padding:5px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+
+/* famous */
+.areas{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.area{background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.area>h3{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.area>h3 span{font-family:var(--f-num);font-size:12px;color:var(--muted);font-weight:400}
+.era{padding:8px 14px 10px;display:flex;flex-direction:column;gap:6px}
+.era+.era{border-top:1px dashed var(--line)}
+.era .elab{font-size:11.5px;color:var(--muted);letter-spacing:.06em}
+.fm{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;cursor:pointer;padding:2px 0}
+.fm .nm{font-size:13.5px;font-weight:500;min-width:0}
+.fm .nm small{color:var(--muted);font-weight:400;font-size:11.5px;margin-left:4px}
+.fm .tt{font-family:var(--f-num);font-size:13px}
+.fm .bars{grid-column:1/3;display:flex;height:5px;gap:2px}
+.fm .bars b{display:block;height:100%;border-radius:0 2px 2px 0}
+.fm:hover .nm{color:var(--accent)}
+.empty{font-size:12.5px;color:var(--muted)}
+
+/* table */
+.tbl-wrap{overflow:auto;background:var(--surface);border:1px solid var(--line);max-height:680px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:500;color:var(--fg2);font-size:11.5px;background:var(--surface);position:sticky;top:0;z-index:1}
+th button{all:unset;cursor:pointer}
+th[aria-sort="ascending"] button::after{content:" ▲";font-size:9px}
+th[aria-sort="descending"] button::after{content:" ▼";font-size:9px}
+td.r,th.r{text-align:right}
+td.nm{white-space:normal;min-width:190px;max-width:260px;font-weight:500}
+td.memo{white-space:normal;min-width:160px;max-width:240px;color:var(--fg2);font-size:12px}
+tr.fam td.nm::before{content:"★ ";color:var(--star)}
+tr.flash td{background:var(--accent-soft)}
+.pill{font-size:11px;padding:0 7px;border:1px solid var(--s1);color:var(--s1);border-radius:999px}
+.pill.n{border-color:var(--line);color:var(--muted)}
+.hot{color:var(--warn);font-weight:500}
+
+.legend .bar-k,.legend .bar-s{display:inline-block;width:18px;height:6px;border-radius:0 2px 2px 0;margin-right:5px;vertical-align:2px}
+.legend .bar-k{background:var(--s1)}.legend .bar-s{background:var(--s2)}
+.chartnotes{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+details summary{cursor:pointer;color:var(--fg2);font-size:14px}
+details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fg2);max-width:76ch}
+@media (max-width:560px){input[type=search]{width:100%}.fbar .wrap{gap:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top gut">
+  <div class="wrap">
+    <h1>東京マンション管理費・修繕費マップ</h1>
+    <p class="sub">東京23区の分譲マンションの管理費・修繕積立金を、専有面積1㎡あたりの月額で比較できます。フィルターで対象を絞ることができます。</p>
+    <div class="status"><span id="src"><span class="dot"></span>読み込み中</span><span id="cnt"></span></div>
+  </div>
+</header>
+
+<div class="fbar gut" id="fbar">
+  <div class="wrap">
+    <div class="fgroup" role="group" aria-label="エリア"><span class="flab">エリア</span><span id="fArea"></span></div>
+    <div class="fgroup"><span class="flab">区</span><select id="fWard" aria-label="区"><option value="">すべて</option></select></div>
+    <div class="fgroup" role="group" aria-label="区分"><span class="flab">区分</span><span id="fType"></span></div>
+    <div class="fgroup" role="group" aria-label="築年数"><span class="flab">築年</span><span id="fAge"></span></div>
+    <div class="fgroup" role="group" aria-label="階数"><span class="flab">階数</span><span id="fFl"></span></div>
+    <div class="fgroup" role="group" aria-label="総戸数"><span class="flab">戸数</span><span id="fUn"></span></div>
+    <div class="fgroup"><button type="button" class="chip" id="f40" aria-pressed="false">40㎡以上</button><button type="button" class="chip" id="fLab" aria-pressed="true">名前を表示</button></div>
+    <input type="search" id="q" placeholder="物件名で検索" aria-label="物件名で検索">
+    <button type="button" class="link" id="reset">条件をリセット</button>
+  </div>
+</div>
+
+<main class="wrap gut">
+
+
+
+<section>
+  <div class="hd"><h2>指定条件の中央値</h2><span class="note"><span class="cntN"></span><span id="kpiNote"></span></span></div>
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section>
+  <div class="hd">
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2>築年数と㎡単価</h2><span class="note cntN"></span></div>
+    <div class="seg" role="group" aria-label="費目">
+      <button type="button" data-m="s" aria-pressed="true">修繕積立金</button>
+      <button type="button" data-m="k" aria-pressed="false">管理費</button>
+      <button type="button" data-m="t" aria-pressed="false">合計</button>
+    </div>
+  </div>
+  <div class="legend"><span><i style="background:var(--s1)"></i>タワー（20階以上）</span><span><i style="background:var(--s2)"></i>非タワー</span><span>白抜き＝専有40㎡未満</span></div>
+  <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
+  <ul class="note chartnotes"><li>点をクリックすると一覧の該当行に移動します。初期表示ラベルは1000戸以上の大規模物件と飛値のマンションのみ表示しています。（20棟以下に絞られた場合は全物件表示）</li><li>点にカーソルを合わせると名前と数値が出ます。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
+</section>
+
+<section>
+  <div class="hd"><h2>タワー　エリア別・新旧</h2><span class="note" id="twCnt"></span></div>
+  <div class="legend"><span>20階以上の物件を、合計㎡単価の高い順に並べています。バーの内訳：</span><span><i class="bar-k"></i>管理費</span><span><i class="bar-s"></i>修繕積立金</span></div>
+  <div class="areas" id="famous"></div>
+</section>
+
+<section>
+  <div class="hd"><h2>一覧</h2><span class="note" id="tcnt"></span></div>
+  <div class="tbl-wrap"><table id="tbl"><thead><tr></tr></thead><tbody></tbody></table></div>
+  <p class="note">管理費・修繕積立金は売出時点の月額です。ネット・自治会費・地域冷暖房の積立金など「その他費用」は含みません（備考に記載）。㎡単価は壁芯面積で計算しています。</p>
+</section>
+
+<section>
+  <details>
+    <summary>読み方のポイント</summary>
+    <ul>
+      <li>タワーが割高になるのは主に管理費です。修繕積立金は築年数の影響が大きく、新築は段階増額方式で低めに設定されています。</li>
+      <li>40㎡未満の住戸は1戸あたり定額の費目があるため、㎡単価が高く出ます。比較するときは「40㎡以上」で絞ってください。</li>
+      <li>国交省ガイドライン（令和3年改訂）の修繕積立金の目安は、20階以上で平均338円/㎡、20階未満は延床面積の規模により252〜335円/㎡です。</li>
+      <li>レインズの2025年度成約データでは、東京都区部の平均は管理費261円・修繕積立金233円/㎡です。</li>
+      <li>数値は売出事例1件ごとのもので、同じ建物でも住戸によって按分が異なることがあります。</li>
+    </ul>
+  </details>
+</section>
+</main>
+
+<script>
+/* ===== 設定 ===== */
+const DATA_DATE = "2026年10月";   // データを更新したらここも書き換える
+const SEED = [["id", "注目", "マンション名", "区", "エリア", "竣工年月", "階数", "総戸数", "専有面積㎡", "管理費", "修繕積立金", "備考", "出典URL", "調査年月"], [1, true, "品川Vタワー", "港区", "湾岸", "2003-03", 43, 650, 87.08, 28600, 78460, "管理費内訳 全体11,700+住宅16,900", "https://www.mec-h.com/mansion/detail/D69X00489", "2026-10"], [2, false, "品川タワーフェイス", "港区", "湾岸", "2005-07", 30, 258, 35.65, 12480, 12160, "", "https://www.mec-h.com/mansion/detail/S13FF5C8012", "2026-10"], [3, true, "東京ツインパークス", "港区", "都心", "2002-09", 47, 1000, 91.86, 34000, 28380, "別途ヒーツ修繕積立金3,860・給湯暖房基本料", "https://www.rehouse.co.jp/buy/mansion/bkdetail/F02BGA17/", "2026-10"], [4, true, "パークコート赤坂檜町ザタワー", "港区", "都心", "2018-02", 44, 319, 39.5, 15400, 9280, "免震+制振、長期優良住宅", "https://www.nomu.com/pro/bukken_local_id/RB170136/", "2026-10"], [5, false, "乃木坂パークハウス", "港区", "都心", "2010-06", 25, "", 88.56, 53642, 42500, "超高級（都心ハイエンド）", "https://www.mec-h.com/mansion/detail/S13F61C3012", "2026-10"], [6, false, "パーク・ノヴァ白金ヒルトップレジデンス", "港区", "都心", "2001-11", 14, 39, 115.15, 29360, 34080, "", "https://www.mec-h.com/mansion/detail/S1601327322", "2026-10"], [7, false, "リクレイシア西麻布I番館", "港区", "都心", "2003-12", 13, 39, 19.93, 8875, 3990, "投資用1K", "https://sumaity.com/mansion/used/tokyo_prop/prop_20437129/", "2026-10"], [8, false, "パラシオン浜松町", "港区", "都心", "1980-07", 11, 69, 20.89, 9470, 7370, "投資用1R", "https://sumaity.com/mansion/used/tokyo_prop/prop_20445601/", "2026-10"], [9, false, "ダイアパレス芝大門", "港区", "都心", "1983-06", 11, 50, 25.28, 9800, 10700, "投資用1DK", "https://sumaity.com/mansion/used/tokyo_prop/prop_20402145/", "2026-10"], [10, true, "センチュリーパークタワー", "中央区", "湾岸", "1999-01", 54, 756, 55.33, 19100, 25450, "別途ヒーツ修繕積立金3,100・給湯暖房基本料800", "https://www.kenbiya.com/pp1/s/tokyo/chuo-ku/re_4724033yq2/", "2026-10"], [11, true, "勝どきビュータワー", "中央区", "湾岸", "2010-11", 53, 712, 54.68, 15120, 19680, "", "https://www.mec-h.com/mansion/detail/D59X30691", "2026-10"], [12, true, "パークタワー勝どきミッド", "中央区", "湾岸", "2023-08", 45, 1121, 69.35, 24840, 8510, "新築時設定に近い（段階増額）", "https://www.mec-h.com/mansion/detail/S13FC9C8011", "2026-10"], [13, true, "晴海フラッグ サンヴィレッジT棟", "中央区", "湾岸", "2025-10", 50, 733, 77.79, 30020, 15170, "タワー棟、新築時設定", "https://sumaity.com/mansion/used/tokyo_prop/prop_20144019/", "2026-10"], [14, false, "晴海フラッグ サンヴィレッジC棟", "中央区", "湾岸", "2023-11", 16, 236, 79.17, 24550, 13220, "板状。街区全体で大規模。別途自治会費等3,900", "https://www.mec-h.com/mansion/detail/S13FC9C4014", "2026-10"], [15, true, "パークシティ武蔵小山ザタワー", "品川区", "城南", "2019-12", 41, 628, 61.18, 27840, 25750, "免震、駅前再開発", "https://www.mec-h.com/mansion/detail/S13F55C2017", "2026-10"], [16, false, "グランシティユーロレジデンス品川の杜", "品川区", "城南", "2004-10", 10, 131, 83.86, 23310, 19210, "2026年11月から修繕積立金33,290円に改定予定", "https://www.mec-h.com/mansion/detail/S12MHF92012", "2026-10"], [17, false, "ザ・パークハウス品川荏原町", "品川区", "城南", "2016-02", 18, 55, 45.37, 19100, 11200, "", "https://www.mec-h.com/mansion/detail/S21BH260060", "2026-10"], [18, false, "シティインデックス武蔵小山", "品川区", "城南", "2010-08", 14, "", 43.66, 14980, 16070, "", "https://www.mec-h.com/mansion/detail/S19AAA16260", "2026-10"], [19, true, "ザ・パークハウス西新宿タワー60", "新宿区", "都心", "2017-08", 60, 953, 83.37, 25060, 15010, "", "https://www.mec-h.com/mansion/detail/D54X31219", "2026-10"], [20, true, "広尾ガーデンヒルズ O棟", "渋谷区", "都心", "1983-06", 12, 1183, 93.38, 22790, 24910, "常駐管理・団地型（全15棟）", "https://www.stepon.co.jp/mansion/detail_16123017/", "2026-10"], [21, false, "笹塚マンション", "渋谷区", "都心", "1969-11", 8, 35, 36.55, 19600, 0, "自主管理。修繕積立金は管理費に含む", "https://www.mec-h.com/mansion/detail/S13FC2C8005", "2026-10"], [22, false, "上目黒パークマンション", "目黒区", "城南", "1971-03", 12, 81, 96.03, 21640, 15200, "", "https://sumaity.com/mansion/used/tokyo_prop/prop_20503577/", "2026-10"], [23, false, "ドム都立大学", "目黒区", "城南", "1984-06", 4, 27, 15.92, 8190, 5525, "投資用1K", "https://sumaity.com/mansion/used/tokyo_prop/prop_20067977/", "2026-10"], [24, false, "Brillia Tower池袋West", "豊島区", "城北", "2024-01", 30, 231, 64.14, 31950, 11970, "新築時設定", "https://www.kenbiya.com/pp1/s/tokyo/toshima-ku/re_4624060ejh/", "2026-10"], [25, false, "プラウドタワー亀戸クロス ブライトタワー", "江東区", "城東", "2021-12", 25, 482, 74.56, 27200, 10490, "商業施設一体", "https://www.mec-h.com/mansion/detail/S13FF7BX009", "2026-10"], [26, false, "プラウドタワー練馬", "練馬区", "城西", "2009-01", 29, 257, 60.01, 20105, 12390, "", "https://www.mec-h.com/mansion/detail/S13F81C7001", "2026-10"], [27, false, "カーサ中村", "練馬区", "城西", "1974-05", 13, 108, 44.0, 6320, 14370, "", "https://www.mec-h.com/mansion/detail/S15sj250749", "2026-10"], [28, false, "光が丘パークタウン春の風公園街5号棟", "練馬区", "城西", "1988-03", 5, 29, 96.78, 8300, 10900, "公団分譲の団地型（棟29戸）", "https://www.rehouse.co.jp/buy/mansion/bkdetail/FK5BGA6D/", "2026-10"], [29, false, "パークシティ杉並セントラルタワー", "杉並区", "城西", "2000-08", 28, 204, 50.68, 19010, 14600, "別途セントラルタワー管理費800", "https://www.mec-h.com/mansion/detail/S13F61C9018", "2026-10"], [30, false, "サーパス阿佐ヶ谷中杉通り", "杉並区", "城西", "2003-10", 8, 28, 53.8, 15835, 21500, "", "https://www.mec-h.com/mansion/detail/S12MHF95246", "2026-10"], [31, false, "プラウド杉並和田グランドコート", "杉並区", "城西", "2012-05", 5, 82, 72.79, 18900, 13280, "", "https://www.mec-h.com/mansion/detail/S13FC8C5005", "2026-10"], [32, false, "ユニーブル杉並高円寺", "杉並区", "城西", "2009-11", 13, "", 38.51, 9600, 16790, "", "https://www.mec-h.com/mansion/detail/S20HRA65442", "2026-10"], [33, false, "シティハウス世田谷代田", "世田谷区", "城南", "2006-10", 3, 31, 73.92, 20120, 27200, "低層", "https://www.mec-h.com/mansion/detail/S13F85C5002", "2026-10"], [34, false, "上町マンション", "世田谷区", "城南", "1969-09", 12, "", 50.76, 9530, 15000, "", "https://www.mec-h.com/mansion/detail/S20HRA63323", "2026-10"], [35, false, "目白台ハイツ", "文京区", "城北", "1979-03", 5, 27, 25.38, 9700, 15480, "投資用1K", "https://sumaity.com/mansion/used/tokyo_prop/prop_17616141/", "2026-10"], [36, false, "ライオンズマンション文京根津", "文京区", "城北", "1986-04", 10, 43, 17.1, 8000, 6700, "投資用1R", "https://sumaity.com/mansion/used/tokyo_prop/prop_20486863/", "2026-10"], [37, false, "ミッドレジデンス文京", "文京区", "城北", "2014-11", 13, 92, 70.89, 13390, 17720, "", "https://www.mec-h.com/mansion/detail/S21BE260091", "2026-10"], [38, false, "朝日江戸川橋マンション", "文京区", "城北", "1983-03", 13, 90, 59.4, 11000, 15440, "", "https://sumaity.com/mansion/used/tokyo_prop/prop_20435895/", "2026-10"], [39, false, "リスタ東武練馬アソシア", "板橋区", "城北", "2005-02", 10, 28, 69.05, 21600, 24310, "", "https://www.mec-h.com/mansion/detail/S13F55C8034", "2026-10"], [40, false, "ライオンズタワー赤羽", "北区", "城北", "1999-09", 20, "", 85.86, 18700, 22500, "", "https://www.mec-h.com/mansion/detail/S20HRA63557", "2026-10"], [41, false, "プラウド赤羽ディアージュ", "北区", "城北", "2014-11", 7, 68, 70.78, 12100, 13630, "", "https://www.mec-h.com/mansion/detail/S13FE6C9004", "2026-10"], [42, false, "アイビーハイツ赤羽", "北区", "城北", "1992-11", 7, 16, 99.22, 28010, 31750, "小規模", "https://www.mec-h.com/mansion/detail/S17630594", "2026-10"], [43, false, "ライオンズマンション中央本町", "足立区", "城東", "1985-10", 6, "", 62.1, 18600, 19690, "", "https://www.mec-h.com/mansion/detail/S12MHF94018", "2026-10"], [44, false, "ミディオンセンターレジデンス", "葛飾区", "城東", "2005-02", 15, 700, 70.24, 11600, 13970, "2028年4月から修繕積立金値上げ予定", "https://www.mec-h.com/mansion/detail/S19AAA16228", "2026-10"], [45, false, "グレーシアタワー亀有", "葛飾区", "城東", "2013-10", 19, 91, 63.09, 15460, 15780, "名称はタワーだが19階", "https://www.mec-h.com/mansion/detail/S17631575", "2026-10"], [46, false, "ライオンズマンション葛飾鎌倉", "葛飾区", "城東", "1997-12", 4, 27, 77.22, 21930, 29420, "", "https://www.mec-h.com/mansion/detail/S13F54C9013", "2026-10"], [47, false, "レクセルマンション亀有", "葛飾区", "城東", "2001-01", 14, "", 69.13, 11400, 19220, "", "https://www.mec-h.com/mansion/detail/S17627051", "2026-10"], [48, false, "葛西住宅", "江戸川区", "城東", "1975-01", 14, 238, 59.8, 7800, 15000, "24時間有人管理", "https://www.mec-h.com/mansion/detail/S21BS260029", "2026-10"], [49, false, "江戸川ハイツ", "江戸川区", "城東", "1975-02", 9, "", 74.84, 8250, 17250, "", "https://www.mec-h.com/mansion/detail/S20HRA64821", "2026-10"], [50, false, "アル・カーザ小岩", "江戸川区", "城東", "1995-03", 6, "", 62.41, 11500, 10800, "", "https://www.mec-h.com/mansion/detail/S20HRA66553", "2026-10"], [51, false, "プラウドシティ大田六郷 フォレスト街区棟", "大田区", "城南", "2017-02", 14, 466, 78.09, 13000, 18870, "板状大規模", "https://www.mec-h.com/mansion/detail/S13F97C3003", "2026-10"], [52, false, "グランバース多摩川・萩中公園", "大田区", "城南", "2003-02", 9, "", 71.89, 14240, 13300, "", "https://www.mec-h.com/mansion/detail/S19AAA16466", "2026-10"], [53, false, "D'クラディア蒲田EAST", "大田区", "城南", "2005-08", 6, "", 73.2, 18630, 16780, "", "https://www.mec-h.com/mansion/detail/S20HRA66176", "2026-10"], [54, false, "アールブラン武蔵新田", "大田区", "城南", "2020-02", 7, "", 40.69, 8700, 6710, "", "https://www.mec-h.com/mansion/detail/S13F97C9003", "2026-10"], [55, true, "三田ガーデンヒルズ", "港区", "都心", "2024-12", 14, 1002, 128.43, 185580, 43790, "別途ネット1,430", "https://www.mec-h.com/mansion/detail/S15ht251135", "2026-10"], [56, true, "ワールドシティタワーズ ブリーズタワー", "港区", "湾岸", "2006-10", 42, 459, 81.76, 20078, 41610, "総戸数は棟単位", "https://www.rehouse.co.jp/buy/mansion/bkdetail/FZQBGA11/", "2026-10"], [57, true, "ワールドタワーレジデンス", "港区", "都心", "2024-11", 46, 389, 74.67, 54790, 16210, "別途ネット・ITシステム等", "https://www.mec-h.com/mansion/detail/D59X30569", "2026-10"], [58, true, "プラウドタワー目黒MARC", "品川区", "城南", "2023-08", 32, 301, 73.13, 34660, 10100, "別途enecoQ等2,332", "https://www.mec-h.com/mansion/detail/S13FB4C6002", "2026-10"], [59, true, "大崎ウエストシティタワーズ W棟", "品川区", "城南", "2009-09", 39, 1084, 65.65, 22459, 22000, "", "https://www.mec-h.com/mansion/detail/D41X31243", "2026-10"], [60, true, "THE TOKYO TOWERS SEA TOWER", "中央区", "湾岸", "2008-01", 58, 2797, 63.07, 12930, 11490, "総戸数は2棟合計", "https://www.nomu.com/pro/bukken_local_id/F85C6015/", "2026-10"], [61, true, "パークタワー勝どきサウス", "中央区", "湾岸", "2023-08", 58, 1665, 73.94, 25730, 8720, "", "https://www.nomu.com/pro/bukken_local_id/R8271190/", "2026-10"], [62, true, "ドゥ・トゥール ウエスト", "中央区", "湾岸", "2015-10", 52, 1450, 70.98, 22098, 12150, "", "https://www.nomu.com/mansion/id/R5471021/", "2026-10"], [63, true, "白金ザ・スカイ 東棟", "港区", "都心", "2023-02", 45, 1247, 84.66, 32712, 10923, "", "https://www.mec-h.com/mansion/detail/S21BP260053", "2026-10"], [64, true, "ブランズタワー豊洲", "江東区", "湾岸", "2021-10", 48, 1152, 63.0, 25100, 6500, "", "https://www.nomu.com/mansion/id/RC370110/", "2026-10"], [65, true, "芝浦アイランド ケープタワー", "港区", "湾岸", "2006-10", 48, 1095, 88.33, 21460, 21460, "", "https://www.mec-h.com/mansion/detail/S13FF4C6005", "2026-10"], [66, true, "シティタワーズ豊洲ザ・ツイン ノースタワー", "江東区", "湾岸", "2009-02", 48, 461, 82.51, 20540, 35490, "別途管理組合協力金1,000", "https://www.rehouse.co.jp/buy/mansion/bkdetail/FBPBGA42/", "2026-10"], [67, true, "中目黒アトラスタワー", "目黒区", "城南", "2009-09", 45, 495, 121.55, 38170, 47400, "", "https://www.mec-h.com/mansion/detail/S13FF4C8034", "2026-10"], [68, true, "シティタワー武蔵小山", "品川区", "城南", "2021-04", 41, 506, 60.39, 23090, 15630, "", "https://www.livable.co.jp/mansion/C13248E31/", "2026-10"], [69, true, "アトラスタワー五反田", "品川区", "城南", "2024-01", 30, 213, 71.02, 38210, 9580, "", "https://www.mec-h.com/mansion/detail/D41X31308", "2026-10"], [70, false, "勝どき ザ・タワー", "中央区", "湾岸", "2016-11", 53, 1420, 67.86, 16220, 8140, "2026年9月から管理費21,380円、2027年4月から修繕積立金12,420円に改定予定", "https://www.mec-h.com/mansion/detail/D59X30689", "2026-10"], [71, false, "富久クロス コンフォートタワー", "新宿区", "都心", "2015-04", 55, 1093, 71.67, 25220, 23230, "別途enecoQ 1,870", "https://www.mec-h.com/mansion/detail/S13FE5C7035", "2026-10"], [72, false, "Wコンフォートタワーズ ウエスト", "江東区", "湾岸", "2005-02", 45, 476, 113.02, 22500, 21240, "", "https://www.mec-h.com/mansion/detail/S13F54C4012", "2026-10"], [73, false, "スカイズタワー&ガーデン", "江東区", "湾岸", "2014-08", 44, 1110, 73.48, 28040, 9690, "", "https://www.nomu.com/mansion/id/RC370381/", "2026-10"], [74, false, "グローバルフロントタワー", "港区", "湾岸", "2015-09", 34, 883, 42.42, 12950, 9310, "", "https://www.mec-h.com/mansion/detail/S13FB3C8002", "2026-10"], [75, false, "プライムパークス品川シーサイド ザ・タワー", "品川区", "湾岸", "2019-01", 29, 817, 63.6, 16560, 10810, "", "https://www.mec-h.com/mansion/detail/D41X31334", "2026-10"], [76, false, "ベイサイドタワー晴海", "中央区", "湾岸", "2015-09", 33, 352, 57.2, 23365, 20760, "", "https://www.livable.co.jp/mansion/C13268515/", "2026-10"], [77, false, "キャピタルゲートプレイス ザ・タワー", "中央区", "湾岸", "2015-07", 53, 624, 44.82, 15820, 15060, "", "https://www.mec-h.com/mansion/detail/S13FC9C7004", "2026-10"], [78, false, "クロスエアタワー", "目黒区", "城南", "2013-01", 42, 689, 77.56, 26800, 26300, "", "https://www.mec-h.com/mansion/detail/D58X31193", "2026-10"], [79, false, "ブリリアタワー東京", "墨田区", "城東", "2006-02", 45, 644, 73.53, 20340, 25701, "別途その他3,923", "https://www.mec-h.com/mansion/detail/S21AU260247", "2026-10"], [80, false, "ベイシティ晴海スカイリンクタワー", "中央区", "湾岸", "2009-12", 49, 738, 86.62, 22700, 18800, "", "https://www.livable.co.jp/mansion/C4825ZP89/", "2026-10"], [81, false, "晴海アイランド トリトンスクエア ビュータワー", "中央区", "湾岸", "1998-02", 50, 624, 69.86, 13490, 24730, "", "https://www.nomu.com/mansion/id/RC970878/", "2026-10"], [82, false, "コンシェリア西新宿 タワーズウエスト", "新宿区", "都心", "2008-02", 44, 612, 55.16, 21900, 14100, "", "https://www.mec-h.com/mansion/detail/D12X31351", "2026-10"], [83, false, "エアライズタワー", "豊島区", "城北", "2007-01", 42, 555, 64.85, 19770, 26660, "", "https://www.nomu.com/mansion/id/R5571767/", "2026-10"], [84, false, "トルナーレ日本橋浜町", "中央区", "都心", "2005-08", 46, 558, 43.89, 10900, 16710, "", "https://www.mec-h.com/mansion/detail/S12MHF93942", "2026-10"], [85, false, "赤坂タワーレジデンス トップオブザヒル", "港区", "都心", "2008-04", 45, 521, 129.5, 48100, 67400, "", "https://www.nomu.com/pro/bukken_local_id/R8271590/", "2026-10"], [86, false, "アーバンドックパークシティ豊洲 タワーA", "江東区", "湾岸", "2008-02", 53, 1020, 70.55, 21730, 14110, "", "https://www.mec-h.com/mansion/detail/S13EF414024", "2026-10"], [87, false, "シティタワー品川", "港区", "湾岸", "2008-04", 43, 828, 89.18, 16920, 19262, "別途解体積立金3,781", "https://www.mec-h.com/mansion/detail/D69X00517", "2026-10"], [88, false, "MID TOWER GRAND", "中央区", "湾岸", "2020-10", 32, 503, 75.23, 25060, 9320, "", "https://www.nomu.com/mansion/id/BC970009/", "2026-10"], [89, false, "ブリリアタワーズ目黒 サウスレジデンス", "品川区", "城南", "2017-07", 38, 416, 81.07, 28030, 16214, "", "https://www.nomu.com/mansion/id/R6570130/", "2026-10"]];
+
+const AREAS=["都心","湾岸","城南","城西","城北","城東"];
+const WARDS=["千代田区","中央区","港区","新宿区","渋谷区","品川区","目黒区","大田区","世田谷区","中野区","杉並区","練馬区","豊島区","文京区","北区","板橋区","荒川区","台東区","墨田区","江東区","足立区","葛飾区","江戸川区"];
+const AGES=[["all","すべて"],["10","10年以内"],["20","11〜20年"],["30","21〜30年"],["99","30年超"]];
+const NOW={y:2026,m:10};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=n=>(n===""||n==null||isNaN(n))?"—":Number(n).toLocaleString("ja-JP");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
+
+let DATA=[], live=false;
+const F={areas:new Set(),ward:"",type:"all",age:"all",fl:new Set(),un:new Set(),big:false,q:""};
+const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
+const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
+const BIG_UNITS=1000;
+let metric="s", sortKey="t", sortDir=-1, showLab=true; const LAB_MAX=20;
+
+function norm(o){
+  const b=String(o["竣工年月"]||"").slice(0,7); const [y,m]=b.split("-").map(Number);
+  const area=Number(o["専有面積㎡"]), k=Number(o["管理費"]), s=Number(o["修繕積立金"]);
+  const age=y?Math.max(0,Math.round(((NOW.y*12+NOW.m)-(y*12+(m||1)))/12*10)/10):null;
+  const fam=o["注目"]===true||String(o["注目"]).toUpperCase()==="TRUE";
+  return {id:Number(o.id),fam,name:String(o["マンション名"]),ward:o["区"],area_:o["エリア"],built:b,age,floors:Number(o["階数"])||0,
+    units:o["総戸数"]===""||o["総戸数"]==null?null:Number(String(o["総戸数"]).replace(/,/g,"")),area,kanri:k,shuzen:s,
+    note:o["備考"]||"",src:o["出典URL"]||"",tower:(Number(o["階数"])||0)>=20,
+    k_:area?Math.round(k/area):null,s_:area?Math.round(s/area):null,t_:area?Math.round((k+s)/area):null};
+}
+const SEEDOBJ=SEED.slice(1).map(r=>Object.fromEntries(SEED[0].map((h,i)=>[h,r[i]])));
+
+function load(){
+  DATA=SEEDOBJ.map(norm);
+  $("#src").innerHTML=`<span class="dot live"></span>${DATA_DATE}時点のデータ・${DATA.length}棟`;
+  render();
+}
+function setSrc(t,ok=true){ $("#src").innerHTML=`<span class="dot ${ok&&live?"live":""}"></span>${esc(t)}`; }
+
+/* ===== フィルター ===== */
+function buildFilters(){
+  $("#fArea").innerHTML=AREAS.map(a=>`<button type="button" class="chip" data-area="${a}" aria-pressed="false">${a}</button>`).join("");
+  $("#fType").innerHTML=[["all","すべて"],["t","タワー"],["n","非タワー"]].map(([v,l])=>`<button type="button" class="chip" data-type="${v}" aria-pressed="${v==="all"}">${l}</button>`).join("");
+  $("#fAge").innerHTML=AGES.map(([v,l])=>`<button type="button" class="chip" data-age="${v}" aria-pressed="${v==="all"}">${l}</button>`).join("");
+  $("#fFl").innerHTML=FLS.map(([v,l])=>`<button type="button" class="chip" data-fl="${v}" aria-pressed="false">${l}</button>`).join("");
+  $("#fUn").innerHTML=UNS.map(([v,l])=>`<button type="button" class="chip" data-un="${v}" aria-pressed="false">${l}</button>`).join("");
+  $$("[data-fl]").forEach(b=>b.onclick=()=>{const v=b.dataset.fl; F.fl.has(v)?F.fl.delete(v):F.fl.add(v); b.setAttribute("aria-pressed",F.fl.has(v)); render();});
+  $$("[data-un]").forEach(b=>b.onclick=()=>{const v=b.dataset.un; F.un.has(v)?F.un.delete(v):F.un.add(v); b.setAttribute("aria-pressed",F.un.has(v)); render();});
+  $("#fWard").insertAdjacentHTML("beforeend",WARDS.map(w=>`<option>${w}</option>`).join(""));
+  $$("[data-area]").forEach(b=>b.onclick=()=>{const a=b.dataset.area; F.areas.has(a)?F.areas.delete(a):F.areas.add(a); b.setAttribute("aria-pressed",F.areas.has(a)); render();});
+  $$("[data-type]").forEach(b=>b.onclick=()=>{F.type=b.dataset.type; $$("[data-type]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
+  $$("[data-age]").forEach(b=>b.onclick=()=>{F.age=b.dataset.age; $$("[data-age]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
+  $("#fWard").onchange=e=>{F.ward=e.target.value; render();};
+  $("#f40").onclick=e=>{F.big=!F.big; e.target.setAttribute("aria-pressed",F.big); render();};
+  $("#fLab").onclick=e=>{showLab=!showLab; e.target.setAttribute("aria-pressed",showLab); render();};
+  $("#q").oninput=e=>{F.q=e.target.value.trim(); render();};
+  $("#reset").onclick=()=>{F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.type="all";F.age="all";F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
+    $$("[data-area]").forEach(b=>b.setAttribute("aria-pressed",false));$$("[data-type],[data-age]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.type==="all"||b.dataset.age==="all"));
+    $("#f40").setAttribute("aria-pressed",false);render();};
+}
+function ageOk(a){ if(F.age==="all")return true; if(a==null)return false; const hi=+F.age, lo={10:0,20:10,30:20,99:30}[F.age]; return F.age==="10"?a<=10:(a>lo&&a<=hi); }
+function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
+function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
+function filtered(){ return DATA.filter(x=>(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||x.name.toLowerCase().includes(F.q.toLowerCase()))); }
+
+/* ===== 描画 ===== */
+const med=a=>{a=a.filter(v=>v!=null&&!isNaN(v)).sort((p,q)=>p-q); if(!a.length)return null; const m=a.length>>1; return Math.round(a.length%2?a[m]:(a[m-1]+a[m])/2);};
+function render(){
+  const R=filtered(), V=R.filter(x=>x.shuzen>0);
+  $("#cnt").textContent=`対象 ${R.length}棟 ／ 全${DATA.length}棟`;
+  $$(".cntN").forEach(e=>e.textContent=R.length===DATA.length?`全${DATA.length}棟を表示中`:`対象 ${R.length}棟（全${DATA.length}棟中）`);
+  renderKpis(V); drawChart(V); renderFamous(V); renderTable(R);
+}
+function renderKpis(V){
+  const T=V.filter(x=>x.tower), N=V.filter(x=>!x.tower);
+  const cell=(lab,arr)=>`<div class="kpi"><span class="lab">${lab}（${arr.length}棟）</span><span class="val">${fmt(med(arr.map(x=>x.t_)))} <small>円/㎡</small></span><span class="cmp">管理 ${fmt(med(arr.map(x=>x.k_)))}・修繕 ${fmt(med(arr.map(x=>x.s_)))}</span></div>`;
+  const kt=V.length?med(V.map(x=>x.t_)):null, m70=kt?Math.round(kt*70/1000)/10:null;
+  $("#kpis").innerHTML=cell("合計の中央値",V)+cell("タワー",T)+cell("非タワー",N)+`<div class="kpi"><span class="lab">70㎡に換算すると</span><span class="val">${m70?m70.toFixed(1):"—"} <small>万円/月</small></span><span class="cmp">管理費＋修繕積立金の合計</span></div>`;
+  $("#kpiNote").textContent=V.length<R_len()?"　修繕積立金0円の物件は集計から除外しています":"";
+}
+function R_len(){return filtered().length;}
+
+function drawChart(V){
+  const key=metric+"_", W=980,H=560,ml=54,mr=24,mt=22,mb=42;
+  const el=$("#chart"), tip=$("#tip"); el.querySelector("svg")?.remove();
+  if(!V.length){el.insertAdjacentHTML("afterbegin",`<svg viewBox="0 0 ${W} 120"><text x="${W/2}" y="64" text-anchor="middle" font-size="14" fill="var(--muted)">条件に合う物件はありません</text></svg>`);return;}
+  const vals=V.map(x=>x[key]).sort((a,b)=>a-b);
+  const p95=vals[Math.floor(vals.length*0.95)]||vals[vals.length-1];
+  let cap=Math.max(p95*1.15, metric==="s"?400:300); const step=cap>1200?200:100; cap=Math.ceil(cap/step)*step;
+  const xmax=Math.max(30,Math.ceil(Math.max(...V.map(x=>x.age||0))/10)*10);
+  const vmax=vals[vals.length-1], broken=vmax>cap;
+  const top=broken?Math.ceil(vmax/step)*step:cap;
+  const bandH=broken?70:0, gap=broken?18:0, mTop=mt+bandH+gap, mBot=H-mb;
+  const X=v=>ml+v/xmax*(W-ml-mr);
+  const Y=v=>v<=cap ? mTop+(1-v/cap)*(mBot-mTop) : (mt+bandH-6)-(v-cap)/(top-cap)*(bandH-12);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="築年数と㎡単価の散布図">`;
+  for(let v=0;v<=cap;v+=step) s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${ml-8}" y="${Y(v)+4}" text-anchor="end" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+  if(broken){
+    s+=`<rect x="${ml}" y="${mt}" width="${W-ml-mr}" height="${bandH}" fill="var(--accent-soft)" opacity=".55"/>`;
+    s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(top)}" y2="${Y(top)}" stroke="var(--line)"/><text x="${ml-8}" y="${Y(top)+4}" text-anchor="end" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${top}</text>`;
+    s+=`<text x="${ml+8}" y="${mt+14}" font-size="11" fill="var(--fg2)">縦軸を圧縮（${cap}〜${top}円）</text>`;
+    // 軸の破断マーク
+    const gy=mt+bandH+gap/2;
+    s+=`<rect x="${ml-10}" y="${gy-4}" width="${W-ml-mr+10}" height="8" fill="var(--surface)"/>`;
+    for(const dx of [-7,-1]) s+=`<line x1="${ml+dx-6}" y1="${gy+5}" x2="${ml+dx+6}" y2="${gy-5}" stroke="var(--fg2)" stroke-width="1.5"/>`;
+    s+=`<line x1="${ml}" x2="${W-mr}" y1="${gy-4}" y2="${gy-4}" stroke="var(--line)" stroke-dasharray="2 3"/><line x1="${ml}" x2="${W-mr}" y1="${gy+4}" y2="${gy+4}" stroke="var(--line)" stroke-dasharray="2 3"/>`;
+  }
+  s+=`<line x1="${ml}" x2="${ml}" y1="${mTop}" y2="${mBot}" stroke="var(--line)"/>`+(broken?`<line x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+bandH}" stroke="var(--line)"/>`:"");
+  for(let v=0;v<=xmax;v+=10) s+=`<text x="${X(v)}" y="${H-mb+20}" text-anchor="middle" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+  s+=`<text x="${(ml+W-mr)/2}" y="${H-5}" text-anchor="middle" font-size="12" fill="var(--fg2)">築年数（年）</text><text x="${ml}" y="13" font-size="12" fill="var(--fg2)">円/㎡・月</text>`;
+  if(metric==="s"&&338<=cap) s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(338)}" y2="${Y(338)}" stroke="var(--fg2)" stroke-dasharray="5 4"/><text x="${W-mr-6}" y="${Y(338)-6}" text-anchor="end" font-size="11" fill="var(--fg2)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">ガイドライン 20階以上平均 338</text>`;
+  for(const p of V){
+    const c=p.tower?"var(--s1)":"var(--s2)", small=p.area<40, x=X(p.age||0), y=Y(p[key]);
+    s+=`<circle class="pt" data-id="${p.id}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"/>`;
+  }
+  // ラベル：重なりを避けて上下にずらす
+  const labSet=!showLab?[]:(V.length<=LAB_MAX?V:V.filter(p=>p.units>=BIG_UNITS||p[key]>cap));
+  const fs=V.length<=LAB_MAX?12:10.5;
+  const labs=labSet.map(p=>({p,x:X(p.age||0),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
+  const placed=[];
+  for(const L of labs){
+    const w=L.t.length*fs*1.02+4; let right=L.x+w+14<W-mr; let lx=right?L.x+13:L.x-13-w, ly=L.y+4;
+    for(let tries=0;tries<12;tries++){ const hit=placed.find(q=>Math.abs(q.y-ly)<fs+1&&lx<q.x+q.w&&lx+w>q.x); if(!hit)break; ly=hit.y+fs+2; }
+    ly=Math.min(Math.max(ly,mt+12),H-mb-4); placed.push({x:lx,y:ly,w});
+    if(Math.abs(ly-(L.y+4))>3) s+=`<line x1="${L.x}" y1="${L.y}" x2="${right?lx-2:lx+w+2}" y2="${ly-4}" stroke="var(--muted)" stroke-width="1"/>`;
+    s+=`<text x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}</text>`;
+  }
+  s+=`</svg>`; el.insertAdjacentHTML("afterbegin",s);
+  el.querySelectorAll(".pt").forEach(c=>{
+    const p=DATA.find(d=>d.id==c.dataset.id);
+    c.addEventListener("mouseenter",()=>{tip.innerHTML=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}<br>${p.area}㎡ 管理${p.k_} / 修繕${p.s_} / 合計${p.t_} 円/㎡`;
+      tip.hidden=false; const r=el.getBoundingClientRect(), b=c.getBoundingClientRect(); let l=b.left-r.left+14; if(l>r.width-280)l=b.left-r.left-280; tip.style.left=Math.max(4,l)+"px"; tip.style.top=(b.top-r.top-10)+"px";});
+    c.addEventListener("mouseleave",()=>tip.hidden=true);
+    c.addEventListener("click",()=>jump(p.id));
+  });
+}
+function short(n){n=n.replace(/\s(\S*棟|ウエスト|イースト|ノースタワー|サウスタワー|SEA TOWER|ブリーズタワー|ブライトタワー)$/,"");return n.length>15?n.slice(0,14)+"…":n;}
+function jump(id){ const tr=document.querySelector(`#tbl tr[data-id="${id}"]`); if(!tr)return; tr.scrollIntoView({block:"center",behavior:"smooth"}); tr.classList.add("flash"); setTimeout(()=>tr.classList.remove("flash"),1600); }
+
+function renderFamous(V){
+  const fam=V.filter(x=>x.tower); $("#twCnt").textContent=`対象 ${fam.length}棟`; const maxT=Math.max(800,...fam.map(x=>x.t_));
+  const show=F.areas.size?AREAS.filter(a=>F.areas.has(a)):AREAS.filter(a=>fam.some(x=>x.area_===a));
+  if(!show.length){$("#famous").innerHTML='<p class="empty">条件に合うタワーはありません</p>';return;}
+  $("#famous").innerHTML=show.map(a=>{
+    const list=fam.filter(x=>x.area_===a);
+    const item=x=>`<div class="fm" data-id="${x.id}" title="一覧で見る"><span class="nm">${esc(x.name)}<small>${x.built.slice(0,4)}年・${x.floors}階</small></span><span class="tt">${fmt(x.t_)}<span class="note"> 円/㎡</span></span><span class="bars"><b style="width:${x.k_/maxT*100}%;background:var(--s1)"></b><b style="width:${x.s_/maxT*100}%;background:var(--s2)"></b></span></div>`;
+    const era=(lab,arr)=>`<div class="era"><span class="elab">${lab}（${arr.length}）</span>${arr.length?arr.sort((p,q)=>q.t_-p.t_).map(item).join(""):'<span class="empty">該当なし</span>'}</div>`;
+    return `<div class="area"><h3>${a}<span>${list.length}棟</span></h3>${era("新しめ　築10年以内",list.filter(x=>x.age<=10))}${era("築10年超",list.filter(x=>x.age>10))}</div>`;
+  }).join("");
+  $$("#famous .fm").forEach(d=>d.onclick=()=>jump(+d.dataset.id));
+}
+
+const COLS=[["name","物件名"],["area_","エリア"],["ward","区"],["built","築年月"],["age","築年数",1],["floors","階数",1],["units","総戸数",1],["tower","区分"],["area","専有㎡",1],["kanri","管理費",1],["k_","管理/㎡",1],["shuzen","修繕積立金",1],["s_","修繕/㎡",1],["t_","合計/㎡",1],["note","備考"],["src","出典"]];
+const SK={t:"t_"};
+function buildHead(){
+  const cols=COLS;
+  $("#tbl thead tr").innerHTML=cols.map(([k,l,r])=>k==="_del"?`<th></th>`:`<th class="${r?"r":""}" data-k="${k}"${(SK[sortKey]||sortKey)===k?` aria-sort="${sortDir>0?"ascending":"descending"}"`:""}><button type="button">${l}</button></th>`).join("");
+  $$("#tbl th[data-k] button").forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k; if((SK[sortKey]||sortKey)===k)sortDir*=-1; else{sortKey=k;sortDir=COLS.find(c=>c[0]===k)[2]?-1:1;} buildHead(); render();});
+}
+function renderTable(R){
+  const k=SK[sortKey]||sortKey;
+  const rows=[...R].sort((a,b)=>{const va=a[k],vb=b[k]; if(va==null||va==="")return 1; if(vb==null||vb==="")return -1; return (va>vb?1:va<vb?-1:0)*sortDir;});
+  const tHi=med(R.filter(x=>x.shuzen>0).map(x=>x.t_))*1.5;
+  $("#tbl tbody").innerHTML=rows.map(x=>`<tr data-id="${x.id}" ><td class="nm">${esc(x.name)}</td><td>${esc(x.area_)}</td><td>${esc(x.ward)}</td><td class="num">${x.built.replace("-","/")}</td><td class="r num">${x.age??"—"}</td><td class="r num">${x.floors||"—"}</td><td class="r num">${fmt(x.units)}</td><td>${x.tower?'<span class="pill">タワー</span>':'<span class="pill n">非タワー</span>'}</td><td class="r num">${x.area}</td><td class="r num">${fmt(x.kanri)}</td><td class="r num">${fmt(x.k_)}</td><td class="r num">${fmt(x.shuzen)}</td><td class="r num">${fmt(x.s_)}</td><td class="r num ${x.t_>tHi?"hot":""}"><b>${fmt(x.t_)}</b></td><td class="memo">${esc(x.note)}</td><td>${x.src?`<a href="${esc(x.src)}" target="_blank" rel="noopener">掲載元</a>`:""}</td></tr>`).join("");
+  $("#tcnt").textContent=`対象 ${rows.length}棟。見出しをクリックで並べ替え、合計が中央値の1.5倍を超える物件は赤字です`;
+}
+
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{metric=b.dataset.m; $$("[data-m]").forEach(x=>x.setAttribute("aria-pressed",x===b)); drawChart(filtered().filter(x=>x.shuzen>0));});
+
+buildFilters(); buildHead(); load();
+</script>
+
+</body>
+</html>
