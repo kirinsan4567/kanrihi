@@ -121,6 +121,8 @@ td.nm{white-space:normal;min-width:190px;max-width:260px;font-weight:500}
 td.memo{white-space:normal;min-width:160px;max-width:240px;color:var(--fg2);font-size:12px}
 tr.fam td.nm::before{content:"★ ";color:var(--star)}
 tr.flash td{background:var(--accent-soft)}
+#tbl tr.hl td{background:var(--accent-soft)}#tbl tr.hl td.nm{font-weight:700}
+.qwrap{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
 .pill{font-size:11px;padding:0 7px;border:1px solid var(--s1);color:var(--s1);border-radius:999px}
 .pill.n{border-color:var(--line);color:var(--muted)}
 .hot{color:var(--warn);font-weight:500}
@@ -186,7 +188,7 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
     <div class="fgroup" role="group" aria-label="階数"><span class="flab">階数</span><span id="fFl"></span></div>
     <div class="fgroup" role="group" aria-label="総戸数"><span class="flab">戸数</span><span id="fUn"></span></div>
     <div class="fgroup"><button type="button" class="chip" id="f40" aria-pressed="false">40㎡以上</button><button type="button" class="chip" id="fLab" aria-pressed="true">名前を表示</button></div>
-    <input type="search" id="q" placeholder="物件名で検索" aria-label="物件名で検索">
+    <span class="qwrap"><input type="search" id="q" placeholder="物件名で検索" aria-label="物件名で検索"><span class="seg" role="group" aria-label="検索の表示方法"><button type="button" data-qm="filter" aria-pressed="true">絞り込む</button><button type="button" data-qm="hl" aria-pressed="false">ハイライト</button></span></span>
     <button type="button" class="link" id="reset">条件をリセット</button>
     <button type="button" class="btn fclose" id="fclose">閉じて結果を見る</button>
   </div>
@@ -272,7 +274,7 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 
 let DATA=[], live=false;
-const F={areas:new Set(),ward:"",type:"all",ages:new Set(),fl:new Set(),un:new Set(),big:false,q:""};
+const F={areas:new Set(),ward:"",type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""};
 const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
 const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
 const BIG_UNITS=1000;
@@ -314,6 +316,7 @@ function buildFilters(){
   $("#f40").onclick=e=>{F.big=!F.big; e.target.setAttribute("aria-pressed",F.big); render();};
   $("#fLab").onclick=e=>{showLab=!showLab; e.target.setAttribute("aria-pressed",showLab); render();};
   $("#q").oninput=e=>{F.q=e.target.value.trim(); render();};
+  $$("[data-qm]").forEach(b=>b.onclick=()=>{F.qm=b.dataset.qm; $$("[data-qm]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
   $("#reset").onclick=()=>{F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un],[data-age]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.type="all";F.ages.clear();F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
     $$("[data-area]").forEach(b=>b.setAttribute("aria-pressed",false));$$("[data-type]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.type==="all"));
     $("#f40").setAttribute("aria-pressed",false);render();};
@@ -328,12 +331,16 @@ function fsum(){
   if(F.fl.size) a.push(FLS.filter(x=>F.fl.has(x[0])).map(x=>x[1]).join("・"));
   if(F.un.size) a.push(UNS.filter(x=>F.un.has(x[0])).map(x=>x[1]).join("・"));
   if(F.big) a.push("40㎡以上");
-  if(F.q) a.push(`「${F.q}」`);
+  if(F.q) a.push(F.qm==="filter"?`「${F.q}」`:`「${F.q}」をハイライト（${DATA.filter(qhit).length}棟）`);
   return a.length?a.join("／"):"条件なし";
 }
 function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
 function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
-function filtered(){ return DATA.filter(x=>(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||x.name.toLowerCase().includes(F.q.toLowerCase()))); }
+function filtered(){ return DATA.filter(x=>(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||F.qm==="hl"||qhit(x))); }
+// 検索：全角半角・ひらがなカタカナ・「・」や空白の違いを無視
+const nq=s=>String(s).normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・･\-‐－—–_.,、。'’"“”()（）]/g,"");
+function qhit(x){ const q=nq(F.q); return !!q&&nq(x.name).includes(q); }
+const hlOn=()=>!!F.q&&F.qm==="hl";
 
 /* ===== 描画 ===== */
 const med=a=>{a=a.filter(v=>v!=null&&!isNaN(v)).sort((p,q)=>p-q); if(!a.length)return null; const m=a.length>>1; return Math.round(a.length%2?a[m]:(a[m-1]+a[m])/2);};
@@ -390,9 +397,10 @@ function drawChart(V){
   for(const v of xticks) s+=`<text x="${X(v)}" y="${H-mb+20}" text-anchor="middle" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
   s+=`<text x="${(ml+W-mr)/2}" y="${H-5}" text-anchor="middle" font-size="12" fill="var(--fg2)">${XL[1]}</text><text x="${ml}" y="13" font-size="12" fill="var(--fg2)">円/㎡・月</text>`;
   if(metric==="s"&&338<=cap) s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(338)}" y2="${Y(338)}" stroke="var(--fg2)" stroke-dasharray="5 4"/><text x="${W-mr-6}" y="${Y(338)-6}" text-anchor="end" font-size="11" fill="var(--fg2)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">ガイドライン 20階以上平均 338</text>`;
+  const HL=hlOn(), hits=HL?V.filter(qhit):[];
   for(const p of V){
     const c=p.tower?"var(--s1)":"var(--s2)", small=p.area<40, x=X(xv(p)), y=Y(p[key]);
-    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"/>`;
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"${HL?' opacity=".18"':""}/>`;
   }
   // 傾向線：最小二乗法の近似直線（タワー・非タワー別）
   const groups=[[true,"タワー","var(--s1)"],[false,"非タワー","var(--s2)"]].map(([g,l,c])=>[l,c,V.filter(p=>p.tower===g)]).filter(g=>g[2].length);
@@ -406,11 +414,14 @@ function drawChart(V){
     const d=`M${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`;
     s+=`<path d="${d}" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
   }
+  // ハイライト（検索に一致した物件を最前面に大きく）
+  for(const p of hits){ const c=p.tower?"var(--s1)":"var(--s2)", x=X(xv(p)), y=Y(p[key]);
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" fill="none" stroke="var(--fg)" stroke-width="2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${c}" stroke="var(--surface)" stroke-width="2"/>`; }
   // 当たり判定（指でも押しやすいように点より大きい透明の円）
   for(const p of V) s+=`<circle class="pt" data-id="${p.id}" cx="${X(xv(p)).toFixed(1)}" cy="${Y(p[key]).toFixed(1)}" r="9" fill="transparent"/>`;
   // ラベル：重なりを避けて上下にずらす
-  const labSet=!showLab?[]:(V.length<=LAB_MAX?V:V.filter(p=>p.units>=BIG_UNITS||p[key]>cap));
-  const fs=narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
+  const labSet=HL?hits:(!showLab?[]:(V.length<=LAB_MAX?V:V.filter(p=>p.units>=BIG_UNITS||p[key]>cap)));
+  const fs=HL?(narrow?12:13):narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
   const labs=labSet.map(p=>({p,x:X(xv(p)),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
   const placed=[];
   for(const L of labs){
@@ -472,8 +483,8 @@ function renderTable(R){
   const k=SK[sortKey]||sortKey;
   const rows=[...R].sort((a,b)=>{const va=a[k],vb=b[k]; if(va==null||va==="")return 1; if(vb==null||vb==="")return -1; return (va>vb?1:va<vb?-1:0)*sortDir;});
   const tHi=med(R.filter(x=>x.shuzen>0).map(x=>x.t_))*1.5;
-  $("#tbl tbody").innerHTML=rows.map(x=>`<tr data-id="${x.id}" ><td class="nm">${esc(x.name)}</td><td>${esc(x.area_)}</td><td>${esc(x.ward)}</td><td class="num">${x.built.replace("-","/")}</td><td class="r num">${x.age??"—"}</td><td class="r num">${x.floors||"—"}</td><td class="r num">${fmt(x.units)}</td><td>${x.tower?'<span class="pill">タワー</span>':'<span class="pill n">非タワー</span>'}</td><td class="r num">${x.area}</td><td class="r num">${fmt(x.kanri)}</td><td class="r num">${fmt(x.k_)}</td><td class="r num">${fmt(x.shuzen)}</td><td class="r num">${fmt(x.s_)}</td><td class="r num ${x.t_>tHi?"hot":""}"><b>${fmt(x.t_)}</b></td><td class="memo">${esc(x.note)}</td><td>${x.src?`<a href="${esc(x.src)}" target="_blank" rel="noopener">掲載元</a>`:""}</td></tr>`).join("");
-  $("#tcnt").textContent=`対象 ${rows.length}棟。見出しをクリックで並べ替え、合計が中央値の1.5倍を超える物件は赤字です`;
+  $("#tbl tbody").innerHTML=rows.map(x=>`<tr data-id="${x.id}" class="${hlOn()&&qhit(x)?"hl":""}"><td class="nm">${esc(x.name)}</td><td>${esc(x.area_)}</td><td>${esc(x.ward)}</td><td class="num">${x.built.replace("-","/")}</td><td class="r num">${x.age??"—"}</td><td class="r num">${x.floors||"—"}</td><td class="r num">${fmt(x.units)}</td><td>${x.tower?'<span class="pill">タワー</span>':'<span class="pill n">非タワー</span>'}</td><td class="r num">${x.area}</td><td class="r num">${fmt(x.kanri)}</td><td class="r num">${fmt(x.k_)}</td><td class="r num">${fmt(x.shuzen)}</td><td class="r num">${fmt(x.s_)}</td><td class="r num ${x.t_>tHi?"hot":""}"><b>${fmt(x.t_)}</b></td><td class="memo">${esc(x.note)}</td><td>${x.src?`<a href="${esc(x.src)}" target="_blank" rel="noopener">掲載元</a>`:""}</td></tr>`).join("");
+  $("#tcnt").textContent=(hlOn()?`「${F.q}」に一致 ${rows.filter(qhit).length}棟（ハイライト）。`:"")+`対象 ${rows.length}棟。見出しをクリックで並べ替え、合計が中央値の1.5倍を超える物件は赤字です`;
 }
 
 $("#fTrend").onclick=e=>{showTrend=!showTrend; e.target.setAttribute("aria-pressed",showTrend); drawChart(filtered().filter(x=>x.shuzen>0));};
