@@ -164,6 +164,7 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
   .chart{padding:4px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.chcond{margin:0 0 8px;font-size:12px;color:var(--fg2);line-height:1.5;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -217,10 +218,11 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
       <button type="button" data-x="fl" aria-pressed="false">階数</button>
     </div></div>
   </div>
+  <p class="chcond" id="chCond"></p>
   <div class="legend"><span><i style="background:var(--s1)"></i>タワー（20階以上）</span><span><i style="background:var(--s2)"></i>非タワー</span><span>白抜き＝専有40㎡未満</span><span><i class="ln"></i>線＝近似直線</span><button type="button" class="chip" id="fTrend" aria-pressed="true">近似直線</button></div>
   <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
   <p class="note trendnote" id="trendNote"></p>
-  <ul class="note chartnotes"><li>点をタップ（クリック）すると、マンション名と数値が表示されます。「一覧で見る」を押すと一覧の該当行に移動します。初期表示ラベルは1000戸以上の大規模物件と飛値のマンションのみ表示しています。（20棟以下に絞られた場合は全物件表示）</li><li>パソコンでは点にカーソルを合わせるだけでも名前と数値が出ます。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>横軸は築年数・戸数・階数から選べます。戸数は15戸〜2,000戸超と幅が広いため対数目盛（10倍ごとに同じ間隔）で表示しています。</li><li>線はタワー・非タワーそれぞれの近似直線（最小二乗法。Excelの線形近似と同じ。戸数は対数目盛上の直線）で、各グループのデータがある範囲に引いています。相関係数は築年数と㎡単価の直線的な関係の強さ（−1〜1）で、0に近いほど築年数だけでは説明できないことを意味します。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
+  <ul class="note chartnotes"><li>点をタップ（クリック）すると、マンション名と数値が表示されます。「一覧で見る」を押すと一覧の該当行に移動します。名前ラベルは、外れ値・両端の点・点が集まった群の代表を選んで、重ならない範囲で表示しています（20棟以下に絞った場合は全物件に表示）。</li><li>パソコンでは点にカーソルを合わせるだけでも名前と数値が出ます。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>横軸は築年数・戸数・階数から選べます。戸数は15戸〜2,000戸超と幅が広いため対数目盛（10倍ごとに同じ間隔）で表示しています。</li><li>線はタワー・非タワーそれぞれの近似直線（最小二乗法。Excelの線形近似と同じ。戸数は対数目盛上の直線）で、各グループのデータがある範囲に引いています。相関係数は築年数と㎡単価の直線的な関係の強さ（−1〜1）で、0に近いほど築年数だけでは説明できないことを意味します。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
 </section>
 
 <section>
@@ -365,6 +367,7 @@ function drawChart(V){
   const el=$("#chart"), tip=$("#tip"); el.querySelector("svg")?.remove();
   const XL={age:["築年数","築年数（年）"],un:["戸数","総戸数（戸・対数目盛）"],fl:["階数","階数（階）"]}[xmode];
   $("#chTitle").textContent=XL[0]+"と㎡単価";
+  {const f=fsum(); $("#chCond").textContent="条件："+(f==="条件なし"?"なし（全物件）":f);}
   const xv=p=>xmode==="age"?p.age:xmode==="fl"?(p.floors||null):(p.units||null);
   const tx=v=>xmode==="un"?Math.log10(v):v;
   const nAll=V.length; V=V.filter(p=>xv(p)!=null); const nDrop=nAll-V.length;
