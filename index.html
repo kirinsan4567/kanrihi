@@ -90,6 +90,7 @@ input[type=search]{width:170px}
 .seg{display:inline-flex;border:1px solid var(--line);background:var(--surface);border-radius:4px;overflow:hidden}
 .seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--fg2);padding:5px 12px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+[data-rs][data-dir]:not([data-dir=""])::after{content:attr(data-dir);font-size:.75em;margin-left:3px}
 
 /* famous */
 .rank{background:var(--surface);border:1px solid var(--line);max-height:640px;overflow:auto;position:relative}
@@ -253,8 +254,8 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
   <div class="hd">
     <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 id="chTitle">築年数と㎡単価</h2><span class="note cntN"></span></div>
     <div class="seg" role="group" aria-label="費目">
-      <button type="button" data-m="s" aria-pressed="true">修繕積立金</button>
       <button type="button" data-m="k" aria-pressed="false">管理費</button>
+      <button type="button" data-m="s" aria-pressed="true">修繕積立金</button>
       <button type="button" data-m="t" aria-pressed="false">合計</button>
     </div>
     <div style="display:flex;align-items:center;gap:6px"><span class="note">横軸</span><div class="seg" role="group" aria-label="横軸">
@@ -418,7 +419,7 @@ function renderKpis(V){
 function R_len(){return filtered().length;}
 
 function drawChart(V){
-  const narrow=$("#chart").clientWidth<620; const key=metric+"_", W=narrow?460:980,H=narrow?520:560,ml=narrow?44:54,mr=narrow?10:24,mt=22,mb=42;
+  const narrow=$("#chart").clientWidth<620; const key=metric+"_", TT=narrow?34:38, W=narrow?460:980,H=(narrow?520:560)+TT,ml=narrow?44:54,mr=narrow?10:24,mt=22+TT,mb=42;
   const el=$("#chart"), tip=$("#tip"); el.querySelector("svg")?.remove();
   const XL={age:["築年数","築年数（年）"],un:["戸数","総戸数（戸・対数目盛）"],fl:["階数","階数（階）"]}[xmode];
   $("#chTitle").textContent=XL[0]+"と㎡単価";
@@ -453,7 +454,8 @@ function drawChart(V){
   }
   s+=`<line x1="${ml}" x2="${ml}" y1="${mTop}" y2="${mBot}" stroke="var(--line)"/>`+(broken?`<line x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+bandH}" stroke="var(--line)"/>`:"");
   for(const v of xticks) s+=`<text x="${X(v)}" y="${H-mb+20}" text-anchor="middle" font-size="12" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
-  s+=`<text x="${(ml+W-mr)/2}" y="${H-5}" text-anchor="middle" font-size="12" fill="var(--fg2)">${XL[1]}</text><text x="${ml}" y="13" font-size="12" fill="var(--fg2)">円/㎡・月</text>`;
+  s+=`<text x="${(ml+W-mr)/2}" y="${H-5}" text-anchor="middle" font-size="12" fill="var(--fg2)">${XL[1]}</text><text x="${ml}" y="${13+TT}" font-size="12" fill="var(--fg2)">円/㎡・月</text>`;
+  s+=`<text x="${(ml+W-mr)/2}" y="${narrow?22:24}" text-anchor="middle" font-size="${narrow?17:18}" font-weight="700" fill="var(--fg)">${{k:"管理費",s:"修繕積立金",t:"合計（管理費・修繕積立金）"}[metric]}</text>`;
   if(metric==="s"&&338<=cap) s+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(338)}" y2="${Y(338)}" stroke="var(--fg2)" stroke-dasharray="5 4"/><text x="${W-mr-6}" y="${Y(338)-6}" text-anchor="end" font-size="11" fill="var(--fg2)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">ガイドライン 20階以上平均 338</text>`;
   const HL=hlOn(), hits=HL?V.filter(qhit):[];
   for(const p of V){
@@ -482,6 +484,7 @@ function drawChart(V){
   const fs=HL?(narrow?12:13):narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
   const labs=labSet.map(p=>({p,x:X(xv(p)),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
   const placed=[];
+  if(broken) placed.push({x:ml+6,y:mt+14,w:`縦軸を圧縮（${cap}〜${top}円）`.length*11+6,id:null});   // 圧縮帯の注記と重ねない
   for(const L of labs){
     const w=L.t.length*fs*1.02+4; let right=L.x+w+14<W-mr; let lx=right?L.x+13:L.x-13-w, ly=L.y+4;
     for(let tries=0;tries<12;tries++){ const hit=placed.find(q=>Math.abs(q.y-ly)<fs+1&&lx<q.x+q.w&&lx+w>q.x); if(!hit)break; ly=hit.y+fs+2; }
@@ -618,7 +621,7 @@ function closePop(){ const pop=$("#fpop"); if(pop){pop.hidden=true;} $$("#famous
 document.addEventListener("click",e=>{ if(!e.target.closest("#fpop")&&!e.target.closest("#famous .fm")) closePop(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closePop(); if(typeof unpin==="function") unpin(); } });
 
-let lastV=[], rankSort="t";
+let lastV=[], rankSort="t", rankRev=false;
 function renderFamous(V){
   lastV=V;
   const list=[...V], maxT=Math.max(1,...list.map(x=>x.t_));
@@ -626,14 +629,16 @@ function renderFamous(V){
   { const f=fsum(); $("#rkCond").textContent="条件："+(f==="条件なし"?"なし（全物件）":f); }
   const ja=(a,b)=>String(a).localeCompare(String(b),"ja");
   const by={nm:(p,q)=>ja(p.name,q.name), ar:(p,q)=>AREAS.indexOf(p.area_)-AREAS.indexOf(q.area_)||q.t_-p.t_, wd:(p,q)=>ja(p.ward,q.ward)||q.t_-p.t_, t:(p,q)=>q.t_-p.t_, k:(p,q)=>q.k_-p.k_, s:(p,q)=>q.s_-p.s_, age:(p,q)=>(p.age??999)-(q.age??999), fl:(p,q)=>q.floors-p.floors, un:(p,q)=>(q.units??-1)-(p.units??-1)}[rankSort];
-  list.sort(by);
+  const nul={age:p=>p.age==null,fl:p=>!p.floors,un:p=>p.units==null}[rankSort]||(()=>false), dir=rankRev?-1:1;
+  list.sort((p,q)=>(nul(p)-nul(q))||dir*by(p,q));
   if(!list.length){$("#famous").innerHTML='<p class="empty">条件に合う物件はありません</p>';return;}
-  const H=(v,l,c="",r=true)=>`<th class="${r?"r ":""}${c}"><button type="button" class="${v==="k"?"hk":v==="s"?"hs":""}${rankSort===v?" on":""}" data-hs="${v}" title="${l}で並べ替え">${l}${rankSort===v?"▼":""}</button></th>`;
+  const H=(v,l,c="",r=true)=>`<th class="${r?"r ":""}${c}"><button type="button" class="${v==="k"?"hk":v==="s"?"hs":""}${rankSort===v?" on":""}" data-hs="${v}" title="${l}で並べ替え">${l}${rankSort===v?(rankRev?"▲":"▼"):""}</button></th>`;
   $("#famous").innerHTML=`<table><thead><tr>${H("nm","物件名","c-nm",false)}${H("age","築年")}${H("fl","階数")}${H("un","戸数")}${H("ar","エリア","",false)}${H("wd","区","",false)}<th>内訳</th>${H("k","管理")}${H("s","修繕")}${H("t","合計","c-tt")}</tr></thead><tbody>`+list.map(x=>`<tr class="fm" data-id="${x.id}" tabindex="0" title="クリックで月額と掲載元"><td class="c-nm">${esc(x.name)}</td><td class="r num sub">${x.built.slice(0,4)}年</td><td class="r num sub">${x.floors||"—"}階</td><td class="r num sub">${x.units?fmt(x.units)+"戸":"—"}</td><td class="sub">${esc(x.area_)}</td><td class="sub">${esc(x.ward)}</td><td>${(()=>{const wk=x.k_/maxT*100, ws=x.s_/maxT*100; return `<span class="bars" title="管理費 ${fmt(x.k_)}＋修繕積立金 ${fmt(x.s_)}＝${fmt(x.t_)} 円/㎡">${(()=>{const K=`<b style="width:${wk.toFixed(1)}%;background:var(--ck)"></b>`, S=`<b style="width:${ws.toFixed(1)}%;background:var(--cs)"></b>`; return rankSort==="s"?S+K:K+S;})()}</span>`;})()}</td><td class="r num uk">${fmt(x.k_)}</td><td class="r num us">${fmt(x.s_)}</td><td class="r num c-tt">${fmt(x.t_)}</td></tr>`).join("")+`</tbody></table>`;
   $$("#famous [data-hs]").forEach(b=>b.onclick=e=>{e.stopPropagation(); setRankSort(b.dataset.hs);});
   $$("#famous .fm").forEach(d=>{ const go=()=>openPop(d,DATA.find(x=>x.id==d.dataset.id)); d.onclick=e=>{e.stopPropagation(); go();}; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault(); go();} }; });
 }
-function setRankSort(v){ rankSort=v; $$("[data-rs]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rs===v)); closePop(); renderFamous(lastV); }
+function setRankSort(v){ rankRev=rankSort===v?!rankRev:false; rankSort=v; $$("[data-rs]").forEach(b=>{const on=b.dataset.rs===v; b.setAttribute("aria-pressed",on); b.dataset.dir=on?(rankRev?"▲":"▼"):"";}); closePop(); renderFamous(lastV); }
+$$("[data-rs]").forEach(b=>b.dataset.dir=b.dataset.rs===rankSort?"▼":"");
 $$("[data-rs]").forEach(b=>b.onclick=()=>setRankSort(b.dataset.rs));
 
 
