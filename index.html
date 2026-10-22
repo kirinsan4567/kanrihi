@@ -485,11 +485,12 @@ function drawChart(V){
   for(const L of labs){
     const w=L.t.length*fs*1.02+4; let right=L.x+w+14<W-mr; let lx=right?L.x+13:L.x-13-w, ly=L.y+4;
     for(let tries=0;tries<12;tries++){ const hit=placed.find(q=>Math.abs(q.y-ly)<fs+1&&lx<q.x+q.w&&lx+w>q.x); if(!hit)break; ly=hit.y+fs+2; }
-    ly=Math.min(Math.max(ly,mt+12),H-mb-4); placed.push({x:lx,y:ly,w});
-    if(Math.abs(ly-(L.y+4))>3) s+=`<line x1="${L.x}" y1="${L.y}" x2="${right?lx-2:lx+w+2}" y2="${ly-4}" stroke="var(--muted)" stroke-width="1"/>`;
-    s+=`<text x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}</text>`;
+    ly=Math.min(Math.max(ly,mt+12),H-mb-4); placed.push({x:lx,y:ly,w,id:L.p.id});
+    if(Math.abs(ly-(L.y+4))>3) s+=`<line data-lid="${L.p.id}" x1="${L.x}" y1="${L.y}" x2="${right?lx-2:lx+w+2}" y2="${ly-4}" stroke="var(--muted)" stroke-width="1"/>`;
+    s+=`<text data-lid="${L.p.id}" x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}</text>`;
   }
-  s+=`</svg>`; el.insertAdjacentHTML("afterbegin",s);
+  s+=`<g class="chmk" pointer-events="none"></g></svg>`; el.insertAdjacentHTML("afterbegin",s);
+  CH={svg:el.querySelector("svg"),fs,box:[ml,(broken?mt:mTop)+2,W-mr,mBot-2],pts:V.map(p=>({id:p.id,p,x:X(xv(p)),y:Y(p[key])})),rects:placed.map(q=>({id:q.id,x:q.x-2,y:q.y-fs,w:q.w+4,h:fs+5}))};
   pinned=null; tip.hidden=true; tip.classList.remove("pinned");
   const show=(c,p,pin)=>{
     tip.innerHTML=detailHTML(p,pin?"chart":false);
@@ -498,12 +499,13 @@ function drawChart(V){
     tip.style.maxWidth=tw+"px";
     let l=b.left-r.left+b.width/2+8; if(l+tw>r.width-4) l=b.left-r.left+b.width/2-tw-8; l=Math.max(4,l);
     tip.style.left=l+"px"; tip.style.top="0px"; const th=tip.offsetHeight; let tp=b.top-r.top-th-6; if(tp<4) tp=b.top-r.top+b.height+6; tip.style.top=tp+"px";
+    markChart();
     if(pin){ tip.querySelector(".tipx").onclick=e=>{e.stopPropagation(); unpin();}; const j=tip.querySelector(".tipjump"); if(j) j.onclick=e=>{e.stopPropagation(); unpin(); jumpFam(p.id);}; tip.querySelectorAll("a").forEach(a=>a.onclick=e=>e.stopPropagation()); }
   };
   el.querySelectorAll(".pt").forEach(c=>{
     const p=DATA.find(d=>d.id==c.dataset.id);
-    c.addEventListener("mouseenter",()=>{ if(!pinned) show(c,p,false); });
-    c.addEventListener("mouseleave",()=>{ if(!pinned) tip.hidden=true; });
+    c.addEventListener("mouseenter",()=>{ hovId=p.id; if(!pinned) show(c,p,false); else markChart(); });
+    c.addEventListener("mouseleave",()=>{ hovId=null; if(!pinned) tip.hidden=true; markChart(); });
   });
   // タップ／クリック：いちばん近い点を選ぶ（点が重なっていても指で選びやすい）
   el.querySelector("svg").addEventListener("click",e=>{
@@ -511,9 +513,51 @@ function drawChart(V){
     el.querySelectorAll(".pt").forEach(c=>{ const r=c.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2, d=Math.hypot(cx-e.clientX,cy-e.clientY); if(d<bd){bd=d;best=c;} });
     if(best&&bd<=24){ const p=DATA.find(d=>d.id==best.dataset.id); pinned=p.id; show(best,p,true); } else unpin();
   });
+  markChart();
 }
-let pinned=null;
-function unpin(){ pinned=null; const tip=$("#tip"); tip.hidden=true; tip.classList.remove("pinned"); }
+let pinned=null, CH=null, selId=null, hovId=null;
+function unpin(){ pinned=null; const tip=$("#tip"); tip.hidden=true; tip.classList.remove("pinned"); markChart(); }
+// 表で選んだ物件・ポインタを当てた物件を散布図で強調：点に輪を付け、名前を水色の札にして空いている場所へ引き出す
+function markChart(){
+  if(!CH||!CH.svg.isConnected) return;
+  const svg=CH.svg, g=svg.querySelector(".chmk"), NS="http://www.w3.org/2000/svg"; g.textContent="";
+  svg.querySelectorAll("[data-lid]").forEach(e=>e.style.display="");
+  const ids=[...new Set([selId,pinned,hovId].filter(v=>v!=null).map(String))];
+  const marks=ids.map(id=>CH.pts.find(q=>String(q.id)===id)).filter(Boolean);
+  if(!marks.length) return;
+  const hide=new Set(marks.map(m=>String(m.id)));
+  hide.forEach(id=>svg.querySelectorAll(`[data-lid="${id}"]`).forEach(e=>e.style.display="none"));
+  const fs=CH.fs+1, padX=6, h=fs+8, [bx0,by0,bx1,by1]=CH.box;
+  const obst=CH.rects.filter(r=>!hide.has(String(r.id)));
+  // 詳細ポップアップが出ているときは、その下に札を置かない
+  const tip=$("#tip"); if(!tip.hidden){ try{ const M=svg.getScreenCTM().inverse(), tb=tip.getBoundingClientRect(), P=(x,y)=>{const q=svg.createSVGPoint(); q.x=x; q.y=y; return q.matrixTransform(M);}, a=P(tb.left,tb.top), c=P(tb.right,tb.bottom); obst.push({x:a.x,y:a.y,w:c.x-a.x,h:c.y-a.y,big:1}); }catch(e){} }
+  const mk=(tag,at)=>{const e=document.createElementNS(NS,tag); for(const k in at) e.setAttribute(k,at[k]); return e;};
+  // 点の輪（ラベルより先に描く）
+  for(const m of marks) g.appendChild(mk("circle",{cx:m.x,cy:m.y,r:10,fill:"none",stroke:"var(--accent)","stroke-width":2.5}));
+  for(const m of marks){
+    const nm=m.p.name.length>22?m.p.name.slice(0,21)+"…":m.p.name;
+    const t=mk("text",{"font-size":fs,"font-weight":700,fill:"var(--accent)"}); t.textContent=nm; g.appendChild(t);
+    let tw=0; try{ tw=t.getBBox().width; }catch(e){} if(!tw) tw=nm.length*fs*1.02;
+    const w=tw+padX*2;
+    const hitPt=(x,y)=>CH.pts.reduce((n,q)=>n+(q.x>x-6&&q.x<x+w+6&&q.y>y-6&&q.y<y+h+6?1:0),0);
+    const hitRc=(x,y)=>obst.reduce((n,r)=>n+(x<r.x+r.w+3&&x+w>r.x-3&&y<r.y+r.h+3&&y+h>r.y-3?1:0),0);
+    let best=null;
+    for(const R of [16,28,44,64,90,120,160,210]) for(let a=0;a<24;a++){
+      const th=a/24*2*Math.PI, cx=m.x+Math.cos(th)*(R+w/2), cy=m.y+Math.sin(th)*(R+h/2);
+      const x=cx-w/2, y=cy-h/2; if(x<bx0+2||x+w>bx1-2||y<by0||y+h>by1) continue;
+      const score=hitRc(x,y)*1000+hitPt(x,y)*60+R;
+      if(!best||score<best.score) best={x,y,score};
+    }
+    if(!best) best={x:Math.min(Math.max(m.x+12,bx0),bx1-w),y:Math.min(Math.max(m.y-h-8,by0),by1-h)};
+    const {x,y}=best;
+    // 引き出し線：点から札のいちばん近い縁へ
+    const ex=Math.min(Math.max(m.x,x),x+w), ey=Math.min(Math.max(m.y,y),y+h), d=Math.hypot(ex-m.x,ey-m.y);
+    if(d>11){ const ux=(ex-m.x)/d, uy=(ey-m.y)/d; g.insertBefore(mk("line",{x1:m.x+ux*10,y1:m.y+uy*10,x2:ex,y2:ey,stroke:"var(--accent)","stroke-width":1.5}),t); }
+    g.insertBefore(mk("rect",{x,y,width:w,height:h,rx:4,fill:"var(--accent-soft)",stroke:"var(--accent)","stroke-width":1}),t);
+    t.setAttribute("x",x+padX); t.setAttribute("y",y+h/2+fs*0.36);
+    obst.push({x,y,w,h});
+  }
+}
 // ラベルを付ける物件を選ぶ：外れ値 → 群の代表 → 空いている場所、の順。近すぎる点は飛ばす
 function pickLabels(V,fits,xv,tx,key,X,Y,narrow){
   const few=V.length<=60, budget=narrow?(few?9:9):(few?15:16), D=narrow?(few?38:46):(few?48:60);
@@ -562,6 +606,7 @@ function openPop(anchor,p){
   pop.style.top=(b.bottom-r.top+4)+"px";
   pop.querySelector(".tipx").onclick=e=>{e.stopPropagation(); closePop();};
   $$("#famous .fm").forEach(d=>d.classList.toggle("sel",d===anchor));
+  selId=p.id; markChart();
 }
 // グラフから「タワー　エリア別・新旧」の表の該当行へ移動し、詳細を開く
 let jumping=0;
@@ -569,7 +614,7 @@ function jumpFam(id){ const d=document.querySelector(`#famous .fm[data-id="${id}
   const box=$("#famous"); box.scrollTop+=d.getBoundingClientRect().top-box.getBoundingClientRect().top-box.clientHeight/2;   // 表の中は即座に移動
   d.scrollIntoView({block:"center",behavior:"smooth"}); d.classList.add("flash");
   setTimeout(()=>{d.classList.remove("flash"); openPop(d,DATA.find(x=>x.id==id)); jumping=Date.now();},700); }
-function closePop(){ const pop=$("#fpop"); if(pop){pop.hidden=true;} $$("#famous .fm.sel").forEach(d=>d.classList.remove("sel")); }
+function closePop(){ const pop=$("#fpop"); if(pop){pop.hidden=true;} $$("#famous .fm.sel").forEach(d=>d.classList.remove("sel")); if(selId!=null){ selId=null; markChart(); } }
 document.addEventListener("click",e=>{ if(!e.target.closest("#fpop")&&!e.target.closest("#famous .fm")) closePop(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closePop(); if(typeof unpin==="function") unpin(); } });
 
