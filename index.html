@@ -420,7 +420,7 @@ function drawChart(V){
   // 当たり判定（指でも押しやすいように点より大きい透明の円）
   for(const p of V) s+=`<circle class="pt" data-id="${p.id}" cx="${X(xv(p)).toFixed(1)}" cy="${Y(p[key]).toFixed(1)}" r="9" fill="transparent"/>`;
   // ラベル：重なりを避けて上下にずらす
-  const labSet=HL?hits:(!showLab?[]:(V.length<=LAB_MAX?V:pickLabels(V,fits,xv,tx,key,X,Y,narrow)));
+  const labSet=!showLab?[]:HL?hits:(V.length<=LAB_MAX?V:pickLabels(V,fits,xv,tx,key,X,Y,narrow));
   const fs=HL?(narrow?12:13):narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
   const labs=labSet.map(p=>({p,x:X(xv(p)),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
   const placed=[];
