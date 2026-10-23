@@ -18,7 +18,7 @@
 :root{
   --bg:#f4f6f8; --surface:#ffffff; --fg:#14202b; --fg2:#4a5866; --muted:#7a8794;
   --line:#d9e0e6; --accent:#1f5f99; --accent-soft:#e3edf6; --star:#b7791f;
-  --s1:#2a78d6; --s2:#eb6834; --ck:#9aa3ad; --ckt:#6b7480; --cs:#9b2335; --warn:#b5481c; --ok:#2f7d4f;
+  --s1:#2a78d6; --s2:#eb6834; --ck:#9aa3ad; --ckt:#6b7480; --cs:#9b2335; --warn:#b5481c; --ok:#2f7d4f; --rev:#d1242f; --revt:#ff9a90;
   --f-display:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
   --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -26,11 +26,11 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#11161b; --surface:#182029; --fg:#e8edf2; --fg2:#b4c0cc; --muted:#8693a0;
   --line:#2a3541; --accent:#7fb3e6; --accent-soft:#1d2d3d; --star:#e0a94a;
-  --s1:#3987e5; --s2:#d95926; --ck:#7d8794; --ckt:#a3adb8; --cs:#d9667a; --warn:#f08a5d; --ok:#6cc08f; color-scheme:dark}}
+  --s1:#3987e5; --s2:#d95926; --ck:#7d8794; --ckt:#a3adb8; --cs:#d9667a; --warn:#f08a5d; --ok:#6cc08f; --rev:#ff5c5c; --revt:#b3261e; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#11161b; --surface:#182029; --fg:#e8edf2; --fg2:#b4c0cc; --muted:#8693a0;
   --line:#2a3541; --accent:#7fb3e6; --accent-soft:#1d2d3d; --star:#e0a94a;
-  --s1:#3987e5; --s2:#d95926; --ck:#7d8794; --ckt:#a3adb8; --cs:#d9667a; --warn:#f08a5d; --ok:#6cc08f; color-scheme:dark}
+  --s1:#3987e5; --s2:#d95926; --ck:#7d8794; --ckt:#a3adb8; --cs:#d9667a; --warn:#f08a5d; --ok:#6cc08f; --rev:#ff5c5c; --revt:#b3261e; color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.7}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 .gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -86,7 +86,7 @@ input[type=search]{width:170px}
 .chart .pt{cursor:pointer}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--fg2);align-items:center}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;padding:8px 10px;line-height:1.5;max-width:270px;z-index:3}
+.tip{position:absolute;pointer-events:none;background:var(--fg);background:color-mix(in srgb,var(--fg) 75%,transparent);color:var(--bg);font-size:12px;padding:8px 10px;line-height:1.5;max-width:270px;z-index:3}
 .seg{display:inline-flex;border:1px solid var(--line);background:var(--surface);border-radius:4px;overflow:hidden}
 .seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--fg2);padding:5px 12px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
@@ -192,6 +192,14 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
 .tip a.tipgo{display:inline-block;text-decoration:none}
 .tip .tipt{border-collapse:collapse;margin-top:3px}.tip .tipt td{padding:1px 0 1px 10px;text-align:right;font-variant-numeric:tabular-nums}.tip .tipt td:first-child{padding-left:0;text-align:left}
 .tip .tipnote{font-size:11.5px;opacity:.85}
+.tip .tiph{border-collapse:collapse;margin-top:4px;font-size:11.5px}.tip .tiph td,.tip .tiph th{padding:0 0 0 10px;text-align:right;font-weight:400;font-variant-numeric:tabular-nums}.tip .tiph td:first-child,.tip .tiph th:first-child{padding-left:0;text-align:left}.tip .tiph th{opacity:.75}
+.tip .up{color:var(--revt);font-weight:700}.tip .stale{display:inline-block;margin-top:3px;font-size:11.5px;border:1px dashed currentColor;padding:0 5px;opacity:.9}
+.tag{display:inline-block;font-size:10.5px;line-height:1.5;padding:0 5px;margin-left:5px;border-radius:3px;vertical-align:1px;font-weight:700;white-space:nowrap}
+.tag.rv{color:#fff;background:var(--rev)}.tag.old{color:var(--muted);border:1px dashed var(--muted);font-weight:400}
+.legend i.ar{width:20px;height:2px;border-radius:0;background:var(--rev);position:relative;vertical-align:3px}.legend i.ar::after{content:"";position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:6px solid var(--rev);border-right:0}
+.legend i.od{background:var(--fg2);opacity:.35}
+body:not(.has-hist) .lgrev{display:none}
+.revnote{margin:4px 0 0;font-size:13px}.revnote b{color:var(--rev)}
 .fm.flash{background:var(--accent-soft)}
 .fm.sel .nm{color:var(--accent);font-weight:700}
 #fpop{position:absolute;z-index:5}
@@ -265,7 +273,8 @@ details ul{margin:10px 0 0;padding-left:1.2em;display:flex;flex-direction:column
     </div></div>
   </div>
   <p class="chcond" id="chCond"></p>
-  <div class="legend"><span><i style="background:var(--s1)"></i>タワー（20階以上）</span><span><i style="background:var(--s2)"></i>非タワー</span><span>白抜き＝専有40㎡未満</span><span><i class="ln"></i>線＝近似直線</span><button type="button" class="chip" id="fTrend" aria-pressed="true">近似直線</button></div>
+  <div class="legend"><span><i style="background:var(--s1)"></i>タワー（20階以上）</span><span><i style="background:var(--s2)"></i>非タワー</span><span>白抜き＝専有40㎡未満</span><span><i class="ln"></i>線＝近似直線</span><span class="lgrev"><i class="ar"></i>赤い矢印＝前回から改定（3%以上）</span><span class="lgrev"><i class="od"></i>薄い点＝前回調査の値</span><button type="button" class="chip" id="fTrend" aria-pressed="true">近似直線</button><button type="button" class="chip lgrev" id="fRev" aria-pressed="true">改定の矢印</button></div>
+  <p class="revnote" id="revNote"></p>
   <div class="chart" id="chart"><div class="tip" id="tip" hidden></div></div>
   <p class="note trendnote" id="trendNote"></p>
   <ul class="note chartnotes"><li>点をタップ（クリック）すると、マンション名と数値が表示されます。クリック（タップ）すると金額と「掲載元」のリンクが表示されます。「表で見る」で下の「物件別の㎡単価」の表の該当物件に移動します。名前ラベルは、外れ値・両端の点・点が集まった群の代表を選んで、重ならない範囲で表示しています（20棟以下に絞った場合は全物件に表示）。</li><li>パソコンでは点にカーソルを合わせるだけでも名前と数値が出ます。</li><li>管理費・修繕積立金は売出時点の月額です。ネット・自治会費・地域冷暖房の積立金など「その他費用」は含みません。㎡単価は壁芯面積で計算しています。</li><li>白抜きの丸は専有40㎡未満の住戸で、1戸あたり定額の費目があるため㎡単価が高く出やすくなっています。</li><li>横軸は築年数・戸数・階数から選べます。戸数は15戸〜2,000戸超と幅が広いため対数目盛（10倍ごとに同じ間隔）で表示しています。</li><li>線はタワー・非タワーそれぞれの近似直線（最小二乗法。Excelの線形近似と同じ。戸数は対数目盛上の直線）で、各グループのデータがある範囲に引いています。相関係数は築年数と㎡単価の直線的な関係の強さ（−1〜1）で、0に近いほど築年数だけでは説明できないことを意味します。</li><li>破線は国交省ガイドラインの20階以上の平均（338円/㎡、修繕積立金のみ）。</li></ul>
@@ -317,7 +326,7 @@ function krDecode(t){ t=String(t).trim(); const m=t.match(/KR1:[A-Za-z0-9+\/=]+/
 const AREAS=["都心","湾岸","城南","城西","城北","城東"];
 const WARDS=["千代田区","中央区","港区","新宿区","渋谷区","品川区","目黒区","大田区","世田谷区","中野区","杉並区","練馬区","豊島区","文京区","北区","板橋区","荒川区","台東区","墨田区","江東区","足立区","葛飾区","江戸川区"];
 const AGES=[["5","5年以内",0,5],["10","6〜10年",5,10],["15","11〜15年",10,15],["20","16〜20年",15,20],["25","21〜25年",20,25],["30","26〜30年",25,30],["35","31〜35年",30,35],["40","36〜40年",35,40],["99","40年超",40,1e9]];
-const NOW={y:2026,m:10};
+let NOW={y:2026,m:10};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>(n===""||n==null||isNaN(n))?"—":Number(n).toLocaleString("ja-JP");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -328,7 +337,7 @@ const F={areas:new Set(),ward:"",type:"all",ages:new Set(),qm:"filter",fl:new Se
 const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
 const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
 const BIG_UNITS=1000;
-let xmode="age", showTrend=true, metric="s", sortKey="t", sortDir=-1, showLab=true; const LAB_MAX=20;
+let showRev=true, xmode="age", showTrend=true, metric="s", sortKey="t", sortDir=-1, showLab=true; const LAB_MAX=20;
 
 function norm(o){
   const b=String(o["竣工年月"]||"").slice(0,7); const [y,m]=b.split("-").map(Number);
@@ -351,8 +360,19 @@ function load(){
   }
   render();
 }
+const ymNum=v=>{const m=String(v||"").match(/(\d{4})\D+(\d{1,2})/); return m?Number(m[1])*12+Number(m[2]):null;};
+const ymTxt=n=>`${Math.floor((n-1)/12)}年${(n-1)%12+1}月`;
 function useData(d){
-  DATA_DATE=d.date||""; DATA=d.rows.map(row=>norm(Object.fromEntries(d.cols.map((h,i)=>[h,row[i]]))));
+  DATA_DATE=d.date||""; { const n=ymNum(DATA_DATE); if(n) NOW={y:Math.floor((n-1)/12),m:(n-1)%12+1}; }
+  const nowN=NOW.y*12+NOW.m;
+  DATA=d.rows.map(row=>{ const o=Object.fromEntries(d.cols.map((h,i)=>[h,row[i]])), p=norm(o);
+    // 時系列：最新の観測時点と、それより前の観測（hist）。無ければ今回の調査時点の値とみなす
+    p.obs=ymNum(o["時点"])||nowN; p.stale=p.obs<nowN;
+    const H=((d.hist||{})[p.id]||[]).map(([t,a,k,sv])=>{const n=ymNum(t); return {n,area:a,kanri:k,shuzen:sv,k_:Math.round(k/a),s_:Math.round(sv/a),t_:Math.round((k+sv)/a),age:p.age==null?null:Math.max(0,p.age-(nowN-n)/12)};}).filter(h=>h.n&&h.n<p.obs).sort((a,b)=>a.n-b.n);
+    p.hist=H; p.prev=H[H.length-1]||null;
+    p.rev=p.prev?{k:p.k_/p.prev.k_-1,s:p.prev.s_?p.s_/p.prev.s_-1:0,t:p.t_/p.prev.t_-1}:null;
+    return p; });
+  document.body.classList.toggle("has-hist",DATA.some(p=>p.hist.length||p.stale));
   $("#src").innerHTML=`<span class="dot live"></span>${esc(DATA_DATE)}時点のデータ・${DATA.length}棟`;
 }
 function setSrc(t,ok=true){ $("#src").innerHTML=`<span class="dot ${ok&&live?"live":""}"></span>${esc(t)}`; }
@@ -460,7 +480,7 @@ function drawChart(V){
   const HL=hlOn(), hits=HL?V.filter(qhit):[];
   for(const p of V){
     const c=p.tower?"var(--s1)":"var(--s2)", small=p.area<40, x=X(xv(p)), y=Y(p[key]);
-    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"${HL?' opacity=".5"':""}/>`;
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${small?"var(--surface)":c}" stroke="${small?c:"var(--surface)"}" stroke-width="2"${p.stale?` opacity="${HL?.25:.35}"`:HL?' opacity=".5"':""}/>`;
   }
   // 傾向線：最小二乗法の近似直線（タワー・非タワー別）
   const groups=[[true,"タワー","var(--s1)"],[false,"非タワー","var(--s2)"]].map(([g,l,c])=>[l,c,V.filter(p=>p.tower===g)]).filter(g=>g[2].length);
@@ -474,23 +494,37 @@ function drawChart(V){
     const d=`M${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`;
     s+=`<path d="${d}" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
   }
+  // 改定の矢印：前回の観測点 → 今回の点（見直しがあった物件だけ。変わらない物件は線を引かない）
+  const REV_MIN=0.03, revd=showRev?V.filter(p=>p.rev&&!p.stale&&Math.abs(p.rev[metric])>=REV_MIN&&p.prev[key]!=null):[];
+  if(revd.length) s+=`<defs><marker id="rvhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--rev)"/></marker></defs>`;
+  for(const p of revd){ const q=p.prev, x1=X(xmode==="age"?q.age:xv(p)), y1=Y(q[key]), x2=X(xv(p)), y2=Y(p[key]), d=Math.hypot(x2-x1,y2-y1); if(d<3) continue;
+    const ux=(x2-x1)/d, uy=(y2-y1)/d, ex=x2-ux*7, ey=y2-uy*7;
+    s+=`<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="3.5" fill="var(--surface)" stroke="var(--rev)" stroke-width="1.5"/>`;
+    if(d>9) s+=`<line x1="${(x1+ux*3.5).toFixed(1)}" y1="${(y1+uy*3.5).toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="var(--surface)" stroke-width="5" stroke-linecap="round"/><line x1="${(x1+ux*3.5).toFixed(1)}" y1="${(y1+uy*3.5).toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="var(--rev)" stroke-width="1.8" marker-end="url(#rvhead)"/>`;
+  }
+  const revSet=new Set(revd.map(p=>p.id));
   // ハイライト（検索に一致した物件を最前面に大きく）
   for(const p of hits){ const c=p.tower?"var(--s1)":"var(--s2)", x=X(xv(p)), y=Y(p[key]);
     s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9.5" fill="none" stroke="var(--fg)" stroke-width="1.5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${c}" stroke="var(--surface)" stroke-width="2"/>`; }
   // 当たり判定（指でも押しやすいように点より大きい透明の円）
   for(const p of V) s+=`<circle class="pt" data-id="${p.id}" cx="${X(xv(p)).toFixed(1)}" cy="${Y(p[key]).toFixed(1)}" r="9" fill="transparent"/>`;
   // ラベル：重なりを避けて上下にずらす
-  const labSet=!showLab?[]:HL?hits:(V.length<=LAB_MAX?V:pickLabels(V,fits,xv,tx,key,X,Y,narrow));
+  let labSet=!showLab?[]:HL?hits:(V.length<=LAB_MAX?V:pickLabels(V,fits,xv,tx,key,X,Y,narrow));
+  if(showLab&&!HL) labSet=[...revd.slice().sort((a,b)=>Math.abs(b.rev[metric])-Math.abs(a.rev[metric])).slice(0,narrow?4:8).filter(p=>!labSet.includes(p)),...labSet];   // 改定幅の大きい物件は名前を出す（多すぎると読めないので上位だけ）
   const fs=HL?(narrow?12:13):narrow?(V.length<=LAB_MAX?12:11):(V.length<=LAB_MAX?12:10.5);
-  const labs=labSet.map(p=>({p,x:X(xv(p)),y:Y(p[key]),t:short(p.name)})).sort((a,b)=>a.y-b.y);
+  const pct=v=>(v>=0?"+":"−")+Math.round(Math.abs(v)*100)+"%";
+  const labs=labSet.map(p=>({p,x:X(xv(p)),y:Y(p[key]),t:short(p.name),r:revSet.has(p.id)?" "+pct(p.rev[metric]):""})).sort((a,b)=>a.y-b.y);
+  { const R=V.filter(p=>p.rev&&!p.stale), up=R.filter(p=>Math.abs(p.rev[metric])>=REV_MIN), old=V.filter(p=>p.stale).length, ML={s:"修繕積立金",k:"管理費",t:"合計"}[metric];
+    const avg=up.length?up.reduce((a,p)=>a+p.rev[metric],0)/up.length:0;
+    $("#revNote").innerHTML=R.length||old?`前回調査と比べられた ${R.length}棟のうち、${ML}の改定 <b>${up.length}棟</b>`+(up.length?`（平均 <b>${pct(avg)}</b>・㎡単価）`:"")+(old?`　／　今回売り出しがなく前回の値で表示 ${old}棟`:""):""; }
   const placed=[];
   if(broken) placed.push({x:ml+6,y:mt+14,w:`縦軸を圧縮（${cap}〜${top}円）`.length*11+6,id:null});   // 圧縮帯の注記と重ねない
   for(const L of labs){
-    const w=L.t.length*fs*1.02+4; let right=L.x+w+14<W-mr; let lx=right?L.x+13:L.x-13-w, ly=L.y+4;
+    const w=L.t.length*fs*1.02+L.r.length*fs*.62+4; let right=L.x+w+14<W-mr; let lx=right?L.x+13:L.x-13-w, ly=L.y+4;
     for(let tries=0;tries<12;tries++){ const hit=placed.find(q=>Math.abs(q.y-ly)<fs+1&&lx<q.x+q.w&&lx+w>q.x); if(!hit)break; ly=hit.y+fs+2; }
     ly=Math.min(Math.max(ly,mt+12),H-mb-4); placed.push({x:lx,y:ly,w,id:L.p.id});
     if(Math.abs(ly-(L.y+4))>3) s+=`<line data-lid="${L.p.id}" x1="${L.x}" y1="${L.y}" x2="${right?lx-2:lx+w+2}" y2="${ly-4}" stroke="var(--muted)" stroke-width="1"/>`;
-    s+=`<text data-lid="${L.p.id}" x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}</text>`;
+    s+=`<text data-lid="${L.p.id}" x="${lx}" y="${ly}" font-size="${fs}" fill="var(--fg)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">${esc(L.t)}${L.r?`<tspan fill="var(--rev)" font-weight="700">${L.r}</tspan>`:""}</text>`;
   }
   s+=`<g class="chmk" pointer-events="none"></g></svg>`; el.insertAdjacentHTML("afterbegin",s);
   CH={svg:el.querySelector("svg"),fs,box:[ml,(broken?mt:mTop)+2,W-mr,mBot-2],pts:V.map(p=>({id:p.id,p,x:X(xv(p)),y:Y(p[key])})),rects:placed.map(q=>({id:q.id,x:q.x-2,y:q.y-fs,w:q.w+4,h:fs+5}))};
@@ -592,6 +626,9 @@ function short(n){n=n.replace(/\s(\S*棟|ノースタワー|サウスタワー|S
 // 物件の詳細（掲載元リンク付き）。グラフの点・タワー表で共通
 function detailHTML(p,pin){
   let h=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}<br>専有面積 ${p.area}㎡<table class="tipt"><tr><td>管理費</td><td>${fmt(p.kanri)}円</td><td>${fmt(p.k_)}円/㎡</td></tr><tr><td>修繕積立金</td><td>${fmt(p.shuzen)}円</td><td>${fmt(p.s_)}円/㎡</td></tr><tr><td>合計</td><td>${fmt(p.kanri+p.shuzen)}円</td><td>${fmt(p.t_)}円/㎡</td></tr></table><span class="tipnote">金額は月額（売出時点）</span>`;
+  if(p.stale) h+=`<br><span class="stale">${ymTxt(p.obs)}時点の値（${esc(DATA_DATE)}の調査では売り出しなし）</span>`;
+  if(p.hist&&p.hist.length){ const all=[...p.hist,{n:p.obs,k_:p.k_,s_:p.s_,t_:p.t_}], c=(v,o)=>o!=null&&Math.abs(v/o-1)>=0.03?` class="up"`:"";
+    h+=`<table class="tiph"><tr><th>時点（円/㎡）</th><th>管理</th><th>修繕</th><th>合計</th></tr>`+all.map((r,i)=>{const o=all[i-1]||{}; return `<tr><td>${ymTxt(r.n)}</td><td${c(r.k_,o.k_)}>${fmt(r.k_)}</td><td${c(r.s_,o.s_)}>${fmt(r.s_)}</td><td${c(r.t_,o.t_)}>${fmt(r.t_)}</td></tr>`;}).join("")+`</table>`; }
   if(pin){
     if(p.note) h+=`<br><span class="tipnote">${esc(p.note)}</span>`;
     h+=p.src?`<br><a class="tipgo" href="${esc(p.src)}" target="_blank" rel="noopener nofollow">掲載元を開く ↗</a>`:`<br><span class="tipnote">掲載元の記録なし</span>`;
@@ -633,7 +670,7 @@ function renderFamous(V){
   list.sort((p,q)=>(nul(p)-nul(q))||dir*by(p,q));
   if(!list.length){$("#famous").innerHTML='<p class="empty">条件に合う物件はありません</p>';return;}
   const H=(v,l,c="",r=true)=>`<th class="${r?"r ":""}${c}"><button type="button" class="${v==="k"?"hk":v==="s"?"hs":""}${rankSort===v?" on":""}" data-hs="${v}" title="${l}で並べ替え">${l}${rankSort===v?(rankRev?"▲":"▼"):""}</button></th>`;
-  $("#famous").innerHTML=`<table><thead><tr>${H("nm","物件名","c-nm",false)}${H("age","築年")}${H("fl","階数")}${H("un","戸数")}${H("ar","エリア","",false)}${H("wd","区","",false)}<th>内訳</th>${H("k","管理")}${H("s","修繕")}${H("t","合計","c-tt")}</tr></thead><tbody>`+list.map(x=>`<tr class="fm" data-id="${x.id}" tabindex="0" title="クリックで月額と掲載元"><td class="c-nm">${esc(x.name)}</td><td class="r num sub">${x.built.slice(0,4)}年</td><td class="r num sub">${x.floors||"—"}階</td><td class="r num sub">${x.units?fmt(x.units)+"戸":"—"}</td><td class="sub">${esc(x.area_)}</td><td class="sub">${esc(x.ward)}</td><td>${(()=>{const wk=x.k_/maxT*100, ws=x.s_/maxT*100; return `<span class="bars" title="管理費 ${fmt(x.k_)}＋修繕積立金 ${fmt(x.s_)}＝${fmt(x.t_)} 円/㎡">${(()=>{const K=`<b style="width:${wk.toFixed(1)}%;background:var(--ck)"></b>`, S=`<b style="width:${ws.toFixed(1)}%;background:var(--cs)"></b>`; return rankSort==="s"?S+K:K+S;})()}</span>`;})()}</td><td class="r num uk">${fmt(x.k_)}</td><td class="r num us">${fmt(x.s_)}</td><td class="r num c-tt">${fmt(x.t_)}</td></tr>`).join("")+`</tbody></table>`;
+  $("#famous").innerHTML=`<table><thead><tr>${H("nm","物件名","c-nm",false)}${H("age","築年")}${H("fl","階数")}${H("un","戸数")}${H("ar","エリア","",false)}${H("wd","区","",false)}<th>内訳</th>${H("k","管理")}${H("s","修繕")}${H("t","合計","c-tt")}</tr></thead><tbody>`+list.map(x=>`<tr class="fm" data-id="${x.id}" tabindex="0" title="クリックで月額と掲載元"><td class="c-nm">${esc(x.name)}${x.rev&&!x.stale&&(Math.abs(x.rev.k)>=0.03||Math.abs(x.rev.s)>=0.03)?`<span class="tag rv">改定</span>`:x.stale?`<span class="tag old">${ymTxt(x.obs).replace(/年(\d+)月/,(m,a)=>"."+a)}</span>`:""}</td><td class="r num sub">${x.built.slice(0,4)}年</td><td class="r num sub">${x.floors||"—"}階</td><td class="r num sub">${x.units?fmt(x.units)+"戸":"—"}</td><td class="sub">${esc(x.area_)}</td><td class="sub">${esc(x.ward)}</td><td>${(()=>{const wk=x.k_/maxT*100, ws=x.s_/maxT*100; return `<span class="bars" title="管理費 ${fmt(x.k_)}＋修繕積立金 ${fmt(x.s_)}＝${fmt(x.t_)} 円/㎡">${(()=>{const K=`<b style="width:${wk.toFixed(1)}%;background:var(--ck)"></b>`, S=`<b style="width:${ws.toFixed(1)}%;background:var(--cs)"></b>`; return rankSort==="s"?S+K:K+S;})()}</span>`;})()}</td><td class="r num uk">${fmt(x.k_)}</td><td class="r num us">${fmt(x.s_)}</td><td class="r num c-tt">${fmt(x.t_)}</td></tr>`).join("")+`</tbody></table>`;
   $$("#famous [data-hs]").forEach(b=>b.onclick=e=>{e.stopPropagation(); setRankSort(b.dataset.hs);});
   $$("#famous .fm").forEach(d=>{ const go=()=>openPop(d,DATA.find(x=>x.id==d.dataset.id)); d.onclick=e=>{e.stopPropagation(); go();}; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault(); go();} }; });
 }
@@ -642,6 +679,7 @@ $$("[data-rs]").forEach(b=>b.dataset.dir=b.dataset.rs===rankSort?"▼":"");
 $$("[data-rs]").forEach(b=>b.onclick=()=>setRankSort(b.dataset.rs));
 
 
+$("#fRev").onclick=e=>{showRev=!showRev; e.target.setAttribute("aria-pressed",showRev); drawChart(filtered().filter(x=>x.shuzen>0));};
 $("#fTrend").onclick=e=>{showTrend=!showTrend; e.target.setAttribute("aria-pressed",showTrend); drawChart(filtered().filter(x=>x.shuzen>0));};
 $$("[data-x]").forEach(b=>b.onclick=()=>{xmode=b.dataset.x; $$("[data-x]").forEach(x=>x.setAttribute("aria-pressed",x===b)); drawChart(filtered().filter(x=>x.shuzen>0));});
 document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{metric=b.dataset.m; $$("[data-m]").forEach(x=>x.setAttribute("aria-pressed",x===b)); drawChart(filtered().filter(x=>x.shuzen>0));});
