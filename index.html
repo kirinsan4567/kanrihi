@@ -329,7 +329,7 @@ body:not(.has-hist) .lgrev{display:none}
   </div>
 </footer>
 
-<script src="data.js?v=4f970758"></script>
+<script src="data.js?v=1e45cbb4"></script>
 <script>
 /* ===== 設定 ===== */
 /* データは同じ場所の data.js から読み込む。更新はそのファイルを差し替えるだけ */
@@ -339,7 +339,7 @@ const KRK="kirin-kanrihi-2026";
 function krStream(n){ let h=2166136261; for(const c of KRK) h=Math.imul(h^c.charCodeAt(0),16777619)>>>0; let x=h||1; const o=new Uint8Array(n); for(let i=0;i<n;i++){ x^=x<<13; x>>>=0; x^=x>>>17; x^=x<<5; x>>>=0; o[i]=x&255; } return o; }
 function krDecode(t){ t=String(t).trim(); const m=t.match(/KR1:[A-Za-z0-9+\/=]+/); if(m) t=m[0]; if(!t.startsWith("KR1:")) throw new Error("形式が違います"); const bin=atob(t.slice(4)), b=new Uint8Array(bin.length); const k=krStream(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i)^k[i]; return JSON.parse(new TextDecoder().decode(b)); }
 
-const AREAS=["都心","湾岸","城南","城西","城北","城東"];
+const AREAS=["都心","城南","城西","城北","城東","湾岸"]; // エリアは区で決める（都心＝千代田・中央・港）。湾岸は区と重なる別の区分（指定の町名）
 const WARDS=["千代田区","中央区","港区","新宿区","渋谷区","品川区","目黒区","大田区","世田谷区","中野区","杉並区","練馬区","豊島区","文京区","北区","板橋区","荒川区","台東区","墨田区","江東区","足立区","葛飾区","江戸川区"];
 const AGES=[["5","5年以内",0,5],["10","6〜10年",5,10],["15","11〜15年",10,15],["20","16〜20年",15,20],["25","21〜25年",20,25],["30","26〜30年",25,30],["35","31〜35年",30,35],["40","36〜40年",35,40],["99","40年超",40,1e9]];
 let NOW={y:2026,m:10};
@@ -362,7 +362,7 @@ function norm(o){
   const area=Number(o["専有面積㎡"]), k=Number(o["管理費"]), s=Number(o["修繕積立金"]);
   const age=y?Math.max(0,Math.round(((NOW.y*12+NOW.m)-(y*12+(m||1)))/12*10)/10):null;
   const fam=o["注目"]===true||String(o["注目"]).toUpperCase()==="TRUE";
-  return {id:Number(o.id),fam,name:String(o["マンション名"]),ward:o["区"],area_:o["エリア"],built:b,age,floors:Number(o["階数"])||0,
+  return {id:Number(o.id),fam,name:String(o["マンション名"]),ward:o["区"],area_:o["エリア"],bay:o["湾岸"]===true||String(o["湾岸"]).toUpperCase()==="TRUE",built:b,age,floors:Number(o["階数"])||0,
     units:o["総戸数"]===""||o["総戸数"]==null?null:Number(String(o["総戸数"]).replace(/,/g,"")),area,kanri:k,shuzen:s,
     devs:String(o["デベ"]||"").split("、").map(s=>s.trim()).filter(Boolean),
     note:o["備考"]||"",src:o["出典URL"]||"",tower:(Number(o["階数"])||0)>=20,
@@ -435,7 +435,7 @@ function setSrc(t,ok=true){ $("#src").innerHTML=`<span class="dot ${ok&&live?"li
 
 /* ===== フィルター ===== */
 function buildFilters(){
-  $("#fArea").innerHTML=AREAS.map(a=>`<button type="button" class="chip" data-area="${a}" aria-pressed="false">${a}</button>`).join("");
+  $("#fArea").innerHTML=AREAS.map(a=>`<button type="button" class="chip" data-area="${a}" aria-pressed="false"${a==="湾岸"?' title="区のエリアとは別の区分。月島・勝どき・晴海・佃・豊海町、豊洲・東雲・有明・辰巳・枝川・塩浜・新雲雀、芝浦・海岸2〜3丁目・港南・台場、東品川・南大井1丁目・八潮" style="margin-left:10px"':""}>${a}</button>`).join("");
   $("#fType").innerHTML=[["all","すべて"],["t","タワー"],["n","非タワー"]].map(([v,l])=>`<button type="button" class="chip" data-type="${v}" aria-pressed="${v==="all"}">${l}</button>`).join("");
   $("#fAge").innerHTML=AGES.map(([v,l])=>`<button type="button" class="chip" data-age="${v}" aria-pressed="false">${l}</button>`).join("");
   $("#fFl").innerHTML=FLS.map(([v,l])=>`<button type="button" class="chip" data-fl="${v}" aria-pressed="false">${l}</button>`).join("");
@@ -476,7 +476,7 @@ function fsum(){
 }
 function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
 function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
-function filtered(){ return DATA.filter(x=>devOk(x)&&(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||F.qm==="hl"||qhit(x))); }
+function filtered(){ return DATA.filter(x=>devOk(x)&&(!F.areas.size||F.areas.has(x.area_)||(x.bay&&F.areas.has("湾岸")))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||F.qm==="hl"||qhit(x))); }
 // 検索：全角半角・ひらがなカタカナ・「・」や空白の違いを無視
 const nq=s=>String(s).normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・･\-‐－—–_.,、。'’"“”()（）]/g,"");
 function qhit(x){ const q=nq(F.q); return !!q&&nq(x.name).includes(q); }
@@ -727,12 +727,12 @@ function renderFamous(V){
   $("#twCnt").textContent=`対象 ${list.length}棟`;
   { const f=fsum(); $("#rkCond").textContent="条件："+(f==="条件なし"?"なし（全物件）":f); }
   const ja=(a,b)=>String(a).localeCompare(String(b),"ja");
-  const by={nm:(p,q)=>ja(p.name,q.name), ar:(p,q)=>AREAS.indexOf(p.area_)-AREAS.indexOf(q.area_)||q.t_-p.t_, wd:(p,q)=>ja(p.ward,q.ward)||q.t_-p.t_, t:(p,q)=>q.t_-p.t_, k:(p,q)=>q.k_-p.k_, s:(p,q)=>q.s_-p.s_, age:(p,q)=>(p.age??999)-(q.age??999), fl:(p,q)=>q.floors-p.floors, un:(p,q)=>(q.units??-1)-(p.units??-1)}[rankSort];
+  const by={nm:(p,q)=>ja(p.name,q.name), ar:(p,q)=>((AREAS.indexOf(p.area_)+99)%99)-((AREAS.indexOf(q.area_)+99)%99)||q.t_-p.t_, wd:(p,q)=>ja(p.ward,q.ward)||q.t_-p.t_, t:(p,q)=>q.t_-p.t_, k:(p,q)=>q.k_-p.k_, s:(p,q)=>q.s_-p.s_, age:(p,q)=>(p.age??999)-(q.age??999), fl:(p,q)=>q.floors-p.floors, un:(p,q)=>(q.units??-1)-(p.units??-1)}[rankSort];
   const nul={age:p=>p.age==null,fl:p=>!p.floors,un:p=>p.units==null}[rankSort]||(()=>false), dir=rankRev?-1:1;
   list.sort((p,q)=>(nul(p)-nul(q))||dir*by(p,q));
   if(!list.length){$("#famous").innerHTML='<p class="empty">条件に合う物件はありません</p>';return;}
   const H=(v,l,c="",r=true)=>`<th class="${r?"r ":""}${c}"><button type="button" class="${v==="k"?"hk":v==="s"?"hs":""}${rankSort===v?" on":""}" data-hs="${v}" title="${l}で並べ替え">${l}${rankSort===v?(rankRev?"▲":"▼"):""}</button></th>`;
-  $("#famous").innerHTML=`<table><thead><tr>${H("nm","物件名","c-nm",false)}${H("age","築年")}${H("fl","階数")}${H("un","戸数")}${H("ar","エリア","",false)}${H("wd","区","",false)}<th>内訳</th>${H("k","管理")}${H("s","修繕")}${H("t","合計","c-tt")}</tr></thead><tbody>`+list.map(x=>`<tr class="fm" data-id="${x.id}" tabindex="0" title="クリックで月額と掲載元"><td class="c-nm">${esc(x.name)}${x.rev&&!x.stale&&(Math.abs(x.rev.k)>=0.03||Math.abs(x.rev.s)>=0.03)?`<span class="tag rv">改定</span>`:x.stale?`<span class="tag old">${ymTxt(x.obs).replace(/年(\d+)月/,(m,a)=>"."+a)}</span>`:""}</td><td class="r num sub">${x.built.slice(0,4)}年</td><td class="r num sub">${x.floors||"—"}階</td><td class="r num sub">${x.units?fmt(x.units)+"戸":"—"}</td><td class="sub">${esc(x.area_)}</td><td class="sub">${esc(x.ward)}</td><td>${(()=>{const wk=x.k_/maxT*100, ws=x.s_/maxT*100; return `<span class="bars" title="管理費 ${fmt(x.k_)}＋修繕積立金 ${fmt(x.s_)}＝${fmt(x.t_)} 円/㎡">${(()=>{const K=`<b style="width:${wk.toFixed(1)}%;background:var(--ck)"></b>`, S=`<b style="width:${ws.toFixed(1)}%;background:var(--cs)"></b>`; return rankSort==="s"?S+K:K+S;})()}</span>`;})()}</td><td class="r num uk">${fmt(x.k_)}</td><td class="r num us">${fmt(x.s_)}</td><td class="r num c-tt">${fmt(x.t_)}</td></tr>`).join("")+`</tbody></table>`;
+  $("#famous").innerHTML=`<table><thead><tr>${H("nm","物件名","c-nm",false)}${H("age","築年")}${H("fl","階数")}${H("un","戸数")}${H("ar","エリア","",false)}${H("wd","区","",false)}<th>内訳</th>${H("k","管理")}${H("s","修繕")}${H("t","合計","c-tt")}</tr></thead><tbody>`+list.map(x=>`<tr class="fm" data-id="${x.id}" tabindex="0" title="クリックで月額と掲載元"><td class="c-nm">${esc(x.name)}${x.rev&&!x.stale&&(Math.abs(x.rev.k)>=0.03||Math.abs(x.rev.s)>=0.03)?`<span class="tag rv">改定</span>`:x.stale?`<span class="tag old">${ymTxt(x.obs).replace(/年(\d+)月/,(m,a)=>"."+a)}</span>`:""}</td><td class="r num sub">${x.built.slice(0,4)}年</td><td class="r num sub">${x.floors||"—"}階</td><td class="r num sub">${x.units?fmt(x.units)+"戸":"—"}</td><td class="sub">${esc(x.area_)}${x.bay?"・湾岸":""}</td><td class="sub">${esc(x.ward)}</td><td>${(()=>{const wk=x.k_/maxT*100, ws=x.s_/maxT*100; return `<span class="bars" title="管理費 ${fmt(x.k_)}＋修繕積立金 ${fmt(x.s_)}＝${fmt(x.t_)} 円/㎡">${(()=>{const K=`<b style="width:${wk.toFixed(1)}%;background:var(--ck)"></b>`, S=`<b style="width:${ws.toFixed(1)}%;background:var(--cs)"></b>`; return rankSort==="s"?S+K:K+S;})()}</span>`;})()}</td><td class="r num uk">${fmt(x.k_)}</td><td class="r num us">${fmt(x.s_)}</td><td class="r num c-tt">${fmt(x.t_)}</td></tr>`).join("")+`</tbody></table>`;
   $$("#famous [data-hs]").forEach(b=>b.onclick=e=>{e.stopPropagation(); setRankSort(b.dataset.hs);});
   $$("#famous .fm").forEach(d=>{ const go=()=>openPop(d,DATA.find(x=>x.id==d.dataset.id)); d.onclick=e=>{e.stopPropagation(); go();}; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault(); go();} }; });
 }
