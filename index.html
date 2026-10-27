@@ -203,6 +203,19 @@ body:not(.has-hist) .lgrev{display:none}
 .fm.flash{background:var(--accent-soft)}
 .fm.sel .nm{color:var(--accent);font-weight:700}
 #fpop{position:absolute;z-index:5}
+.dd{position:relative}
+.ddbtn{font:inherit;font-size:13px;padding:4px 10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:4px;cursor:pointer;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ddbtn::after{content:" ▾";color:var(--muted)}
+.ddbtn[aria-expanded="true"]{border-color:var(--accent)}
+.ddpanel{position:absolute;top:calc(100% + 4px);left:0;z-index:20;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 18px rgba(20,32,43,.14);border-radius:6px;padding:6px 0;min-width:240px;max-height:min(60vh,420px);overflow-y:auto}
+.ddpanel[hidden]{display:none}
+.ddpanel label{display:flex;align-items:center;gap:8px;padding:4px 12px;font-size:13px;cursor:pointer;color:var(--fg)}
+.ddpanel label:hover{background:var(--accent-soft)}
+.ddpanel label .n{margin-left:auto;font-family:var(--f-num);font-size:12px;color:var(--muted)}
+.ddpanel label.grp{font-weight:700}
+.ddpanel .ddtop{position:sticky;top:-6px;z-index:1;display:flex;gap:14px;padding:6px 12px;margin-top:-6px;background:var(--surface);border-bottom:1px solid var(--line);margin-bottom:4px}
+.ddpanel hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.ddpanel input{accent-color:var(--accent);width:15px;height:15px;margin:0}
 .tip .tipx{position:absolute;top:2px;right:6px;font:inherit;font-size:14px;background:none;border:0;color:var(--bg);cursor:pointer;padding:2px 4px}
 @media (max-width:760px){
   .fbar .fhead{display:flex;gap:10px;align-items:center;padding-block:8px}
@@ -211,6 +224,8 @@ body:not(.has-hist) .lgrev{display:none}
   .fclose{display:inline-block;width:100%;margin-top:4px}
   input[type=search]{width:100%}
   .chip{font-size:12.5px;padding:3px 9px}
+  .ddpanel{position:static;box-shadow:none;margin-top:4px;max-height:none;min-width:0;width:100%}
+  .dd{flex:1 1 100%}
   .kpis{grid-template-columns:1fr 1fr;gap:8px}
   .kpi{padding:10px 12px}
   .kpi .val{font-size:19px}
@@ -228,7 +243,7 @@ body:not(.has-hist) .lgrev{display:none}
 <header class="top gut">
   <div class="wrap">
     <h1>東京マンション管理費・修繕費マップ</h1>
-    <p class="sub">東京23区の分譲マンションの管理費・修繕積立金を、専有面積1㎡あたりの月額で比較できます。フィルターで対象を絞ることができます。</p>
+    <p class="sub">東京23区を中心に、分譲マンションの管理費・修繕積立金を、専有面積1㎡あたりの月額で比較できます。フィルターで対象を絞ることができます。</p>
     <div class="status"><span id="src"><span class="dot"></span>読み込み中</span><span id="cnt"></span><button type="button" class="themebtn" id="theme"></button></div>
   </div>
 </header>
@@ -243,6 +258,7 @@ body:not(.has-hist) .lgrev{display:none}
     <div class="fgroup" role="group" aria-label="階数"><span class="flab">階数</span><span id="fFl"></span></div>
     <div class="fgroup" role="group" aria-label="総戸数"><span class="flab">戸数</span><span id="fUn"></span></div>
     <div class="fgroup"><button type="button" class="chip" id="f40" aria-pressed="false">40㎡以上</button><button type="button" class="chip" id="fLab" aria-pressed="true">名前を表示</button></div>
+    <div class="fgroup"><span class="flab">デベ</span><div class="dd" id="fDev"><button type="button" class="ddbtn" id="fDevBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fDevPanel">すべて</button><div class="ddpanel" id="fDevPanel" role="group" aria-label="デベロッパー" hidden></div></div></div>
     <span class="qwrap"><input type="search" id="q" placeholder="物件名で検索" aria-label="物件名で検索"><span class="seg" role="group" aria-label="検索の表示方法"><button type="button" data-qm="filter" aria-pressed="true">絞り込む</button><button type="button" data-qm="hl" aria-pressed="false">ハイライト</button></span></span>
     <button type="button" class="link" id="reset">条件をリセット</button>
     <button type="button" class="btn fclose" id="fclose">閉じて結果を見る</button>
@@ -283,7 +299,7 @@ body:not(.has-hist) .lgrev{display:none}
 <section>
   <div class="hd"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2>物件別の㎡単価</h2><span class="note" id="twCnt"></span></div><div class="rsort"><span class="note">並べ替え</span><div class="seg" role="group" aria-label="並べ替え"><button type="button" data-rs="t" aria-pressed="true">合計</button><button type="button" data-rs="k" aria-pressed="false">管理</button><button type="button" data-rs="s" aria-pressed="false">修繕</button><button type="button" data-rs="age" aria-pressed="false">築年</button><button type="button" data-rs="fl" aria-pressed="false">階数</button><button type="button" data-rs="un" aria-pressed="false">戸数</button><button type="button" data-rs="nm" aria-pressed="false">物件名</button><button type="button" data-rs="ar" aria-pressed="false">エリア</button><button type="button" data-rs="wd" aria-pressed="false">区</button></div></div></div>
   <p class="chcond" id="rkCond"></p>
-  <div class="legend"><span>上の絞り込み条件（エリア・区・区分・築年・階数・戸数など）がこの表にも効きます。金額の単位は円/㎡・月。見出しを押すと並べ替えできます。名前を押すと月額と掲載元が出ます。内訳のバーは管理費と修繕積立金の積み上げで、長さは合計額に比例（表示中で最も高い物件が右端）：</span><span><i class="bar-k"></i>管理費</span><span><i class="bar-s"></i>修繕積立金</span></div>
+  <div class="legend"><span>上の絞り込み条件（デベ・エリア・区・区分・築年・階数・戸数など）がこの表にも効きます。金額の単位は円/㎡・月。見出しを押すと並べ替えできます。名前を押すと月額と掲載元が出ます。内訳のバーは管理費と修繕積立金の積み上げで、長さは合計額に比例（表示中で最も高い物件が右端）：</span><span><i class="bar-k"></i>管理費</span><span><i class="bar-s"></i>修繕積立金</span></div>
   <p class="rkhint">← 表は横にスクロールできます。物件名と合計は固定表示 →</p>
   <div style="position:relative"><div class="rank" id="famous"></div><div class="tip pinned" id="fpop" hidden></div></div>
 </section>
@@ -313,7 +329,7 @@ body:not(.has-hist) .lgrev{display:none}
   </div>
 </footer>
 
-<script src="data.js"></script>
+<script src="data.js?v=179862d9"></script>
 <script>
 /* ===== 設定 ===== */
 /* データは同じ場所の data.bin から読み込む（encoder.html で作成）。更新はそのファイルを差し替えるだけ */
@@ -333,10 +349,12 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 
 let DATA=[], live=false;
-const F={areas:new Set(),ward:"",type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""};
+const F={devs:new Set(),areas:new Set(),ward:"",type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""};
 const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
 const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
 const BIG_UNITS=1000;
+const M7=["三井不動産","三菱地所レジデンス","住友不動産","野村不動産","東急不動産","東京建物","大京"];   // メジャーセブン
+const DEV_NONE="不明";
 let showRev=true, xmode="age", showTrend=true, metric="s", sortKey="t", sortDir=-1, showLab=true; const LAB_MAX=20;
 
 function norm(o){
@@ -346,6 +364,7 @@ function norm(o){
   const fam=o["注目"]===true||String(o["注目"]).toUpperCase()==="TRUE";
   return {id:Number(o.id),fam,name:String(o["マンション名"]),ward:o["区"],area_:o["エリア"],built:b,age,floors:Number(o["階数"])||0,
     units:o["総戸数"]===""||o["総戸数"]==null?null:Number(String(o["総戸数"]).replace(/,/g,"")),area,kanri:k,shuzen:s,
+    devs:String(o["デベ"]||"").split("、").map(s=>s.trim()).filter(Boolean),
     note:o["備考"]||"",src:o["出典URL"]||"",tower:(Number(o["階数"])||0)>=20,
     k_:area?Math.round(k/area):null,s_:area?Math.round(s/area):null,t_:area?Math.round((k+s)/area):null};
 }
@@ -374,7 +393,44 @@ function useData(d){
     return p; });
   document.body.classList.toggle("has-hist",DATA.some(p=>p.hist.length||p.stale));
   $("#src").innerHTML=`<span class="dot live"></span>${esc(DATA_DATE)}時点のデータ・${DATA.length}棟`;
+  buildDev();
 }
+/* デベロッパー：プルダウンのチェックボックスで複数選択。先頭の「メジャーセブン」で7社をまとめて選ぶ */
+function devOf(x){ return x.devs.length?x.devs:[DEV_NONE]; }
+let DEV_OTH=[], DEV_ALL=[];
+function buildDev(){
+  const cnt=new Map(); DATA.forEach(x=>devOf(x).forEach(d=>cnt.set(d,(cnt.get(d)||0)+1)));
+  DEV_OTH=[...cnt.keys()].filter(d=>!M7.includes(d)&&d!==DEV_NONE).sort((a,b)=>cnt.get(b)-cnt.get(a)||a.localeCompare(b,"ja"));
+  DEV_ALL=[...M7,...DEV_OTH,...(cnt.has(DEV_NONE)?[DEV_NONE]:[])];
+  const row=d=>`<label><input type="checkbox" data-dev="${esc(d)}"${F.devs.has(d)?" checked":""}>${esc(d)}<span class="n">${cnt.get(d)||0}</span></label>`;
+  const noDev=!DATA.some(x=>x.devs.length);
+  $("#fDevPanel").innerHTML=`<div class="ddtop"><button type="button" class="link" id="fDevAll">すべて選択</button><button type="button" class="link" id="fDevClr">すべて解除</button></div>`
+    +(noDev?`<p class="note" style="margin:4px 12px 6px">このデータにはデベロッパーの情報が入っていません（data.js が古い可能性）</p>`:"")
+    +`<label class="grp"><input type="checkbox" id="fM7">メジャーセブン<span class="n">7社</span></label>`+M7.map(row).join("")
+    +`<hr><label class="grp"><input type="checkbox" id="fOth">その他すべて<span class="n">${DEV_OTH.length}社</span></label>`+DEV_OTH.map(row).join("")
+    +(cnt.has(DEV_NONE)?`<hr>${row(DEV_NONE)}`:"");
+  $$("[data-dev]").forEach(c=>c.onchange=()=>{ c.checked?F.devs.add(c.dataset.dev):F.devs.delete(c.dataset.dev); syncDev(); render(); });
+  const grp=(id,list)=>{ $(id).onchange=e=>{ list.forEach(d=>e.target.checked?F.devs.add(d):F.devs.delete(d)); syncDev(); render(); }; };
+  grp("#fM7",M7); grp("#fOth",DEV_OTH);
+  $("#fDevAll").onclick=()=>{ DEV_ALL.forEach(d=>F.devs.add(d)); syncDev(); render(); };
+  $("#fDevClr").onclick=()=>{ F.devs.clear(); syncDev(); render(); };
+  syncDev();
+}
+function devLabel(){
+  if(!F.devs.size||DEV_ALL.every(d=>F.devs.has(d))) return "すべて";
+  const ex=DEV_ALL.filter(d=>!F.devs.has(d));
+  if(ex.length<=3&&ex.length<DEV_ALL.length/2) return `すべて（${ex.join("・")}を除く）`;
+  const all7=M7.every(d=>F.devs.has(d)), allO=DEV_OTH.length&&DEV_OTH.every(d=>F.devs.has(d));
+  const rest=[...F.devs].filter(d=>!(all7&&M7.includes(d))&&!(allO&&DEV_OTH.includes(d)));
+  return [all7?"メジャーセブン":null,allO?"その他すべて":null,...rest].filter(Boolean).join("・");
+}
+function syncDev(){
+  $$("[data-dev]").forEach(c=>c.checked=F.devs.has(c.dataset.dev));
+  const tri=(id,list)=>{ const m=$(id); if(!m) return; const n=list.filter(d=>F.devs.has(d)).length; m.checked=list.length>0&&n===list.length; m.indeterminate=n>0&&n<list.length; };
+  tri("#fM7",M7); tri("#fOth",DEV_OTH);
+  const b=$("#fDevBtn"); b.textContent=devLabel(); b.title=b.textContent;
+}
+function devOk(x){ return !F.devs.size||devOf(x).some(d=>F.devs.has(d)); }
 function setSrc(t,ok=true){ $("#src").innerHTML=`<span class="dot ${ok&&live?"live":""}"></span>${esc(t)}`; }
 
 /* ===== フィルター ===== */
@@ -391,17 +447,23 @@ function buildFilters(){
   $$("[data-type]").forEach(b=>b.onclick=()=>{F.type=b.dataset.type; $$("[data-type]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
   $$("[data-age]").forEach(b=>b.onclick=()=>{const v=b.dataset.age; F.ages.has(v)?F.ages.delete(v):F.ages.add(v); b.setAttribute("aria-pressed",F.ages.has(v)); render();});
   $("#fWard").onchange=e=>{F.ward=e.target.value; render();};
+  const dp=$("#fDevPanel"), db=$("#fDevBtn"), ddOpen=o=>{ dp.hidden=!o; db.setAttribute("aria-expanded",o); };
+  db.onclick=e=>{ e.stopPropagation(); ddOpen(dp.hidden); };
+  dp.onclick=e=>e.stopPropagation();
+  document.addEventListener("click",()=>ddOpen(false));
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!dp.hidden){ ddOpen(false); db.focus(); } });
   $("#f40").onclick=e=>{F.big=!F.big; e.target.setAttribute("aria-pressed",F.big); render();};
   $("#fLab").onclick=e=>{showLab=!showLab; e.target.setAttribute("aria-pressed",showLab); render();};
   $("#q").oninput=e=>{F.q=e.target.value.trim(); render();};
   $$("[data-qm]").forEach(b=>b.onclick=()=>{F.qm=b.dataset.qm; $$("[data-qm]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
-  $("#reset").onclick=()=>{F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un],[data-age]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.type="all";F.ages.clear();F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
+  $("#reset").onclick=()=>{F.devs.clear();syncDev();F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un],[data-age]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.type="all";F.ages.clear();F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
     $$("[data-area]").forEach(b=>b.setAttribute("aria-pressed",false));$$("[data-type]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.type==="all"));
     $("#f40").setAttribute("aria-pressed",false);render();};
 }
 function ageOk(a){ if(!F.ages.size)return true; if(a==null)return false; return AGES.some(([v,,lo,hi])=>F.ages.has(v)&&(lo===0?a<=hi:(a>lo&&a<=hi))); }
 function fsum(){
   const a=[];
+  if(F.devs.size) a.push(devLabel());
   if(F.areas.size) a.push([...F.areas].join("・"));
   if(F.ward) a.push(F.ward);
   if(F.type!=="all") a.push(F.type==="t"?"タワー":"非タワー");
@@ -414,7 +476,7 @@ function fsum(){
 }
 function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
 function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
-function filtered(){ return DATA.filter(x=>(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||F.qm==="hl"||qhit(x))); }
+function filtered(){ return DATA.filter(x=>devOk(x)&&(!F.areas.size||F.areas.has(x.area_))&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(!F.q||F.qm==="hl"||qhit(x))); }
 // 検索：全角半角・ひらがなカタカナ・「・」や空白の違いを無視
 const nq=s=>String(s).normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・･\-‐－—–_.,、。'’"“”()（）]/g,"");
 function qhit(x){ const q=nq(F.q); return !!q&&nq(x.name).includes(q); }
@@ -625,7 +687,7 @@ function pickLabels(V,fits,xv,tx,key,X,Y,narrow){
 function short(n){n=n.replace(/\s(\S*棟|ノースタワー|サウスタワー|SEA TOWER|ブリーズタワー|ブライトタワー)$/,"");return n.length>15?n.slice(0,14)+"…":n;}
 // 物件の詳細（掲載元リンク付き）。グラフの点・タワー表で共通
 function detailHTML(p,pin){
-  let h=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}<br>専有面積 ${p.area}㎡<table class="tipt"><tr><td>管理費</td><td>${fmt(p.kanri)}円</td><td>${fmt(p.k_)}円/㎡</td></tr><tr><td>修繕積立金</td><td>${fmt(p.shuzen)}円</td><td>${fmt(p.s_)}円/㎡</td></tr><tr><td>合計</td><td>${fmt(p.kanri+p.shuzen)}円</td><td>${fmt(p.t_)}円/㎡</td></tr></table><span class="tipnote">金額は月額（売出時点）</span>`;
+  let h=`<b>${esc(p.name)}</b><br>${esc(p.ward)}・${p.built.replace("-","年")}月築・${p.floors}階・${p.units?fmt(p.units)+"戸":"戸数不明"}${p.devs.length?`<br>${esc(p.devs.join("・"))}`:""}<br>専有面積 ${p.area}㎡<table class="tipt"><tr><td>管理費</td><td>${fmt(p.kanri)}円</td><td>${fmt(p.k_)}円/㎡</td></tr><tr><td>修繕積立金</td><td>${fmt(p.shuzen)}円</td><td>${fmt(p.s_)}円/㎡</td></tr><tr><td>合計</td><td>${fmt(p.kanri+p.shuzen)}円</td><td>${fmt(p.t_)}円/㎡</td></tr></table><span class="tipnote">金額は月額（売出時点）</span>`;
   if(p.stale) h+=`<br><span class="stale">${ymTxt(p.obs)}時点の値（${esc(DATA_DATE)}の調査では売り出しなし）</span>`;
   if(p.hist&&p.hist.length){ const all=[...p.hist,{n:p.obs,k_:p.k_,s_:p.s_,t_:p.t_}], c=(v,o)=>o!=null&&Math.abs(v/o-1)>=0.03?` class="up"`:"";
     h+=`<table class="tiph"><tr><th>時点（円/㎡）</th><th>管理</th><th>修繕</th><th>合計</th></tr>`+all.map((r,i)=>{const o=all[i-1]||{}; return `<tr><td>${ymTxt(r.n)}</td><td${c(r.k_,o.k_)}>${fmt(r.k_)}</td><td${c(r.s_,o.s_)}>${fmt(r.s_)}</td><td${c(r.t_,o.t_)}>${fmt(r.t_)}</td></tr>`;}).join("")+`</table>`; }
