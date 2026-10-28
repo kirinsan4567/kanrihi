@@ -240,7 +240,7 @@ body:not(.has-hist) .lgrev{display:none}
 .ddpanel .tgrp[hidden],.ddpanel label[hidden]{display:none}
 .ddpanel .tgrp label:not(.grp){padding-left:28px}
 #fTownPanel .ddtop{align-items:center}
-@media (max-width:760px){.ddpanel{position:static;margin-top:6px;box-shadow:none;max-height:50vh;width:min(calc(100vw - 64px),340px)}}
+@media (max-width:760px){.ddpanel{max-height:50vh}.fgroup:has(> .dd){flex:1 1 100%}.fgroup:has(> .dd) .dd{flex:1 1 auto;min-width:0}}
 #fTownQ{font:inherit;font-size:13px;line-height:1.5;height:28px;box-sizing:border-box;flex:1;min-width:0;padding:3px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .ddpanel input{accent-color:var(--accent);width:15px;height:15px;margin:0}
 .tip .tipx{position:absolute;top:2px;right:6px;font:inherit;font-size:14px;background:none;border:0;color:var(--bg);cursor:pointer;padding:2px 4px}
@@ -280,7 +280,7 @@ body:not(.has-hist) .lgrev{display:none}
   <div class="wrap fpanel" id="fpanel">
     <div class="cmptabs" id="cmpTabs" role="tablist" aria-label="比較する条件" hidden><span class="ctl">編集する条件：</span><button type="button" role="tab" data-ct="0" aria-selected="false"><i class="sw c1"></i>条件1<span class="ctn"></span></button><button type="button" role="tab" data-ct="1" aria-selected="true"><i class="sw c2"></i>条件2<span class="ctn"></span></button><button type="button" class="link" id="cmpCopy" title="いま編集中でない方の条件を、編集中の条件にコピーし直す">もう一方の条件をコピー</button><button type="button" class="link" id="cmpEnd">比較をやめる</button></div>
     <div class="fgroup" role="group" aria-label="エリア"><span class="flab">エリア</span><span id="fArea"></span></div>
-    <div class="fgroup"><span class="flab">区</span><select id="fWard" aria-label="区"><option value="">すべて</option></select></div>
+    <div class="fgroup"><span class="flab">区</span><div class="dd" id="fWardDd"><button type="button" class="ddbtn" id="fWardBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fWardPanel">すべて</button><div class="ddpanel" id="fWardPanel" role="group" aria-label="区" hidden></div></div></div>
     <div class="fgroup"><span class="flab">町</span><div class="dd" id="fTownDd"><button type="button" class="ddbtn" id="fTownBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fTownPanel">すべて</button><div class="ddpanel" id="fTownPanel" role="group" aria-label="町（地名）" hidden></div></div></div>
     <div class="fgroup" role="group" aria-label="区分"><span class="flab">区分</span><span id="fType"></span></div>
     <div class="fgroup" role="group" aria-label="築年数"><span class="flab">築年</span><span id="fAge"></span></div>
@@ -379,11 +379,11 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 
 let DATA=[], live=false;
-const freshF=()=>({devs:new Set(),areas:new Set(),ward:"",towns:new Set(),type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""});
+const freshF=()=>({devs:new Set(),areas:new Set(),wards:new Set(),towns:new Set(),type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""});
 let F=freshF();
 // 比較：CMP={c:[条件1,条件2],act:編集中の番号}。F は編集中の条件を指す。集計は withF で条件を切り替えて同じ関数を使う
 let CMP=null, rkCmp=0;
-const cloneF=o=>({...o,devs:new Set(o.devs),areas:new Set(o.areas),towns:new Set(o.towns),ages:new Set(o.ages),fl:new Set(o.fl),un:new Set(o.un)});
+const cloneF=o=>({...o,wards:new Set(o.wards),devs:new Set(o.devs),areas:new Set(o.areas),towns:new Set(o.towns),ages:new Set(o.ages),fl:new Set(o.fl),un:new Set(o.un)});
 function withF(c,fn){ const o=F; F=c; try{ return fn(); } finally{ F=o; } }
 const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
 const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
@@ -481,9 +481,9 @@ function buildFilters(){
   $$("[data-area]").forEach(b=>b.onclick=()=>{const a=b.dataset.area; F.areas.has(a)?F.areas.delete(a):F.areas.add(a); b.setAttribute("aria-pressed",F.areas.has(a)); fillWard(); fillTown(); render();});
   $$("[data-type]").forEach(b=>b.onclick=()=>{F.type=b.dataset.type; $$("[data-type]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
   $$("[data-age]").forEach(b=>b.onclick=()=>{const v=b.dataset.age; F.ages.has(v)?F.ages.delete(v):F.ages.add(v); b.setAttribute("aria-pressed",F.ages.has(v)); render();});
-  $("#fWard").onchange=e=>{F.ward=e.target.value; fillTown(); render();};
-  { const tp=$("#fTownPanel"), tb=$("#fTownBtn"), tOpen=o=>{ tp.hidden=!o; tb.setAttribute("aria-expanded",o); if(o){ const i=$("#fTownQ"); if(i&&matchMedia("(hover:hover)").matches) i.focus(); } };
-    tb.onclick=e=>{ e.stopPropagation(); tOpen(tp.hidden); };
+  // 区・町のプルダウン（チェックボックス）：開閉は共通。ひとつ開くと他は閉じる
+  for(const [pid,bid,qid] of [["#fWardPanel","#fWardBtn",null],["#fTownPanel","#fTownBtn","#fTownQ"]]){ const tp=$(pid), tb=$(bid), tOpen=o=>{ tp.hidden=!o; tb.setAttribute("aria-expanded",o); if(o&&qid){ const i=$(qid); if(i&&matchMedia("(hover:hover)").matches) i.focus(); } };
+    tb.onclick=e=>{ e.stopPropagation(); const o=tp.hidden; document.body.click(); tOpen(o); };
     tp.onclick=e=>e.stopPropagation();
     document.addEventListener("click",()=>tOpen(false));
     document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!tp.hidden){ tOpen(false); tb.focus(); } }); }
@@ -529,7 +529,7 @@ function fsum(){
   const a=[];
   if(F.devs.size) a.push(devLabel());
   if(F.areas.size) a.push([...F.areas].join("・"));
-  if(F.ward) a.push(F.ward);
+  if(F.wards.size) a.push(wardLabel());
   if(F.type!=="all") a.push(F.type==="t"?"タワー":"非タワー");
   if(F.ages.size) a.push("築"+AGES.filter(x=>F.ages.has(x[0])).map(x=>x[1]).join("・"));
   if(F.fl.size) a.push(FLS.filter(x=>F.fl.has(x[0])).map(x=>x[1]).join("・"));
@@ -542,7 +542,7 @@ function fsum(){
 function flOk(x){ if(!F.fl.size)return true; return FLS.some(([v,,lo,hi])=>F.fl.has(v)&&x.floors>=lo&&x.floors<=hi); }
 function unOk(x){ if(!F.un.size)return true; if(x.units==null)return false; return UNS.some(([v,,lo,hi])=>F.un.has(v)&&x.units>=lo&&x.units<=hi); }
 const areaOk=x=>!F.areas.size||F.areas.has(x.area_)||(x.bay&&F.areas.has("湾岸"));
-function filtered(){ return DATA.filter(x=>devOk(x)&&areaOk(x)&&(!F.ward||x.ward===F.ward)&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(F.qm==="hl"||hit(x))); }
+function filtered(){ return DATA.filter(x=>devOk(x)&&areaOk(x)&&(!F.wards.size||F.wards.has(x.ward))&&(F.type==="all"||(F.type==="t")===x.tower)&&ageOk(x.age)&&flOk(x)&&unOk(x)&&(!F.big||x.area>=40)&&(F.qm==="hl"||hit(x))); }
 // 検索：全角半角・ひらがなカタカナ・「・」や空白の違いを無視
 const nq=s=>String(s).normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・･\-‐－—–_.,、。'’"“”()（）]/g,"");
 function qhit(x){ const q=nq(F.q); return !!q&&(nq(x.name).includes(q)||(!!x.town&&nq(x.town).includes(q))); }
@@ -551,15 +551,32 @@ function hit(x){ return (!F.q||qhit(x))&&(!F.towns.size||F.towns.has(x.ward+"|"+
 const hlOn=()=>(!!F.q||F.towns.size>0)&&F.qm==="hl";
 // 町の選択肢：区を選んでいればその区の町だけ。件数つき
 // 町：デベと同じくチェックボックスで複数選択。エリア・区を選んでいればそこに含まれる町だけ。区ごとに見出し（区内の町をまとめて選択）。件数つき
-function townLabel(withWard){ const ks=[...F.towns], nm=k=>{const [w,t]=k.split("|"); return withWard&&!F.ward&&new Set(ks.map(x=>x.split("|")[0])).size>1?`${t}（${w}）`:t;};
+function townLabel(withWard){ const ks=[...F.towns], nm=k=>{const [w,t]=k.split("|"); return withWard&&F.wards.size!==1&&new Set(ks.map(x=>x.split("|")[0])).size>1?`${t}（${w}）`:t;};
   if(!ks.length) return "すべて"; return ks.length<=3?ks.map(nm).join("・"):ks.slice(0,2).map(nm).join("・")+`ほか${ks.length-2}町`; }
 // 区の選択肢：エリアを選んでいればそこに含まれる区だけ（件数つき）。外れた区は選択を解除
-function fillWard(){ const sel=$("#fWard"); if(!sel) return; const cnt=new Map();
-  for(const x of DATA) if(areaOk(x)) cnt.set(x.ward,(cnt.get(x.ward)||0)+1);
-  const ws=DATA.length?WARDS.filter(w=>cnt.has(w)):WARDS; if(F.ward&&!ws.includes(F.ward)) F.ward="";
-  sel.innerHTML='<option value="">すべて</option>'+ws.map(w=>`<option value="${esc(w)}">${esc(w)}${DATA.length?`（${cnt.get(w)}）`:""}</option>`).join(""); sel.value=F.ward; }
+// 区：チェックボックスで複数選択。エリアを選んでいればそこに含まれる区だけ（件数つき）。エリアごとに見出し（まとめて選択）。外れた区は選択を解除
+function wardLabel(){ const ws=WARDS.filter(w=>F.wards.has(w)).concat([...F.wards].filter(w=>!WARDS.includes(w))); if(!ws.length) return "すべて"; return ws.length<=3?ws.join("・"):ws.slice(0,2).join("・")+`ほか${ws.length-2}区`; }
+function fillWard(){ const tp=$("#fWardPanel"); if(!tp) return; const cnt=new Map(), ar=new Map();
+  for(const x of DATA) if(areaOk(x)){ cnt.set(x.ward,(cnt.get(x.ward)||0)+1); if(!ar.has(x.ward)) ar.set(x.ward,x.area_); }
+  [...F.wards].forEach(w=>{ if(!cnt.has(w)) F.wards.delete(w); });
+  const wo=w=>{const i=WARDS.indexOf(w); return i<0?99:i;}, ws=[...cnt.keys()].sort((a,b)=>wo(a)-wo(b)||a.localeCompare(b,"ja")), g=new Map();
+  for(const w of ws){ const a=ar.get(w)||"その他"; if(!g.has(a)) g.set(a,[]); g.get(a).push(w); }
+  const ao=a=>{const i=AREAS.indexOf(a); return i<0?99:i;};
+  let h=`<div class="ddtop"><button type="button" class="link" id="fWardClr">すべて解除</button></div>`;
+  for(const [a,l] of [...g].sort((p,q)=>ao(p[0])-ao(q[0]))) h+=`<div class="tgrp"><label class="grp"><input type="checkbox" data-wdall="${esc(a)}">${esc(a)}<span class="n">${l.reduce((s,w)=>s+cnt.get(w),0)}</span></label>`
+    +l.map(w=>`<label><input type="checkbox" data-ward="${esc(w)}">${esc(w)}<span class="n">${cnt.get(w)}</span></label>`).join("")+`</div>`;
+  tp.innerHTML=h;
+  const after=()=>{ syncWard(); fillTown(); render(); };
+  $$("[data-ward]").forEach(c=>c.onchange=()=>{ c.checked?F.wards.add(c.dataset.ward):F.wards.delete(c.dataset.ward); after(); });
+  $$("[data-wdall]").forEach(c=>c.onchange=()=>{ c.closest(".tgrp").querySelectorAll("[data-ward]").forEach(e=>c.checked?F.wards.add(e.dataset.ward):F.wards.delete(e.dataset.ward)); after(); });
+  $("#fWardClr").onclick=()=>{ F.wards.clear(); after(); };
+  syncWard(); }
+function syncWard(){
+  $$("[data-ward]").forEach(c=>c.checked=F.wards.has(c.dataset.ward));
+  $$("[data-wdall]").forEach(m=>{ const cs=[...m.closest(".tgrp").querySelectorAll("[data-ward]")], n=cs.filter(c=>c.checked).length; m.checked=cs.length>0&&n===cs.length; m.indeterminate=n>0&&n<cs.length; });
+  const b=$("#fWardBtn"); if(b){ b.textContent=wardLabel(); b.title=F.wards.size?wardLabel():"区で選ぶ"; } }
 function fillTown(){ const tp=$("#fTownPanel"); if(!tp||!DATA.length) return; const cnt=new Map();
-  for(const x of DATA) if(x.town&&(!F.ward||x.ward===F.ward)&&areaOk(x)){ const k=x.ward+"|"+x.town; cnt.set(k,(cnt.get(k)||0)+1); }
+  for(const x of DATA) if(x.town&&(!F.wards.size||F.wards.has(x.ward))&&areaOk(x)){ const k=x.ward+"|"+x.town; cnt.set(k,(cnt.get(k)||0)+1); }
   [...F.towns].forEach(k=>{ if(!cnt.has(k)) F.towns.delete(k); });   // エリア・区で外れた町は選択から外す
   const wo=w=>{const i=WARDS.indexOf(w); return i<0?99:i;}, g=new Map();
   [...cnt.keys()].sort((a,b)=>{const [wa,ta]=a.split("|"),[wb,tb]=b.split("|"); return wo(wa)-wo(wb)||wa.localeCompare(wb,"ja")||ta.localeCompare(tb,"ja");})
