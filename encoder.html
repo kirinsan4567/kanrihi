@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>マップ用データ変換</title>
+<style>
+:root{--bg:#f4f5f7;--surface:#fff;--fg:#1d2733;--muted:#6b7684;--line:#dfe3e8;--accent:#1f5c99;--ok:#2e7d4f;--ng:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#141a21;--surface:#1c242d;--fg:#e6ebf0;--muted:#98a3ae;--line:#2c3742;--accent:#7fb0e0;--ok:#7fcf9c;--ng:#ef8a80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 8px}
+p{margin:6px 0}
+.note{color:var(--muted);font-size:13px}
+section{background:var(--surface);border:1px solid var(--line);padding:16px 18px;margin-top:18px}
+ol{padding-left:1.4em;margin:6px 0}
+label{display:block;margin:10px 0 4px;font-weight:600;font-size:14px}
+input[type=text]{font:inherit;padding:6px 10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:12em}
+input[type=file]{font:inherit;max-width:100%}
+button{font:inherit;font-weight:700;padding:8px 18px;border:1px solid var(--accent);background:var(--accent);color:var(--surface);cursor:pointer;margin-top:12px}
+button:disabled{opacity:.4;cursor:default}
+.msg{margin-top:12px;font-size:14px;white-space:pre-wrap}
+.ok{color:var(--ok)}.ng{color:var(--ng)}
+table{border-collapse:collapse;font-size:12.5px;margin-top:8px;width:100%;display:block;overflow-x:auto}
+td,th{border:1px solid var(--line);padding:3px 6px;white-space:nowrap;text-align:left}
+code{background:var(--bg);padding:1px 5px}
+</style>
+</head>
+<body>
+<main>
+<h1>マップ用データ変換</h1>
+<p class="note">東京マンション管理費・修繕費マップのデータファイル（data.js）を作る道具です。このファイルはパソコンで直接開いて使えます。通信はしません。</p>
+
+<section>
+<h2>1）CSV から data.js を作る（データ更新）</h2>
+<ol>
+<li>Googleスプレッドシート「マンションDB」で「DB」シートを開き、「ファイル → ダウンロード → カンマ区切り形式（.csv）」で保存する（開いているシートだけが保存される）</li>
+<li>下でその CSV を選び、データの時点を確認して「data.js を作る」を押す</li>
+<li>保存された <code>data.js</code> を GitHub の同じ場所に上書きアップロードする（index.html はそのまま）</li>
+</ol>
+<label for="csv">CSV ファイル</label>
+<input type="file" id="csv" accept=".csv,text/csv">
+<label for="date">データの時点（ページ上部に「○○時点のデータ」と表示されます）</label>
+<input type="text" id="date">
+<div><button type="button" id="make" disabled>data.js を作る</button></div>
+<div class="msg" id="msg1"></div>
+<div id="prev"></div>
+</section>
+
+<section>
+<h2>2）data.js を CSV に戻す（中身の確認・復元）</h2>
+<p class="note">いま公開している data.js の中身を確認したいときや、元のシートが使えないときに使います。Excel やスプレッドシートで開ける CSV になります。</p>
+<label for="bin">data.js ファイル</label>
+<input type="file" id="bin" accept=".js,.bin,text/plain">
+<div><button type="button" id="back" disabled>CSV に戻す</button></div>
+<div class="msg" id="msg2"></div>
+</section>
+
+<section>
+<h2>列のルール</h2>
+<p class="note">DBシートの CSV をそのまま使います。「マップID」と「管理費」が入っている行だけがマップに載ります。並び順や、ほかの列があってもかまいません。公開用のファイルには下の項目だけが入ります。</p>
+<p><b>使う列：</b>マップID、注目、マップ表示名（空ならマンション名）、区、エリア名、竣工年月、階数、戸数、専有面積㎡、管理費、修繕積立金、費用の備考、費用の出典URL、湾岸、地名（町名。町で絞り込む用）<br>
+「アプリ表示」が FALSE の行（複数棟の物件の棟の行など）は、マップに載せずDBだけに残ります。複数棟の物件は「区分」が「全体」の行に合計の戸数を入れ、その行をマップに載せます。</p>
+<p class="note">新しい物件をマップに載せるときは、DBの行に「マップID」（ほかと重ならない番号）・専有面積㎡・管理費・修繕積立金を入れます。以前の「管理費」シートの CSV もそのまま読めます。</p>
+<p class="note">エリアは区で決める「都心・城南・城西・城北・城東・多摩」のどれか（都心＝千代田・中央・港）。湾岸は別の「湾岸」列（TRUE/FALSE）で指定します。竣工年月は 2008-03、2008/3、2008年3月 などどれでも読み取ります。金額のカンマや「円」は自動で取り除きます。</p>
+</section>
+</main>
+<script>
+const KRK="kirin-kanrihi-2026";
+const COLS=["id","注目","マンション名","区","エリア","竣工年月","階数","総戸数","専有面積㎡","管理費","修繕積立金","備考","出典URL","デベ","湾岸","町"];
+const NEED=["マンション名","区","エリア","竣工年月","階数","総戸数","専有面積㎡","管理費","修繕積立金"];
+const NEED_DB=["マップID","マンション名","区","エリア名","竣工年月","階数","戸数","専有面積㎡","管理費","修繕積立金"];
+const AREAS=["都心","城南","城西","城北","城東","多摩"];
+const $=s=>document.querySelector(s);
+function krStream(n){ let h=2166136261; for(const c of KRK) h=Math.imul(h^c.charCodeAt(0),16777619)>>>0; let x=h||1; const o=new Uint8Array(n); for(let i=0;i<n;i++){ x^=x<<13; x>>>=0; x^=x>>>17; x^=x<<5; x>>>=0; o[i]=x&255; } return o; }
+function krEncode(obj){ const b=new TextEncoder().encode(JSON.stringify(obj)), k=krStream(b.length); let s=""; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]^k[i]); return "KR1:"+btoa(s); }
+function krDecode(t){ t=String(t).trim(); const m=t.match(/KR1:[A-Za-z0-9+\/=]+/); if(m) t=m[0]; if(!t.startsWith("KR1:")) throw new Error("data.js の形式ではありません"); const bin=atob(t.slice(4)), b=new Uint8Array(bin.length), k=krStream(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i)^k[i]; return JSON.parse(new TextDecoder().decode(b)); }
+function parseCSV(t){ t=t.replace(/^﻿/,""); const rows=[]; let row=[],f="",q=false;
+  for(let i=0;i<t.length;i++){ const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true; else if(c===","){row.push(f);f="";} else if(c==="\n"||c==="\r"){ if(c==="\r"&&t[i+1]==="\n") i++; row.push(f); rows.push(row); row=[]; f=""; } else f+=c; }
+  if(f!==""||row.length){row.push(f);rows.push(row);} return rows.filter(r=>r.some(x=>x.trim()!=="")); }
+const num=v=>{ const s=String(v??"").replace(/[,，円\s]/g,"").replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); if(s==="")return ""; const n=Number(s); return isNaN(n)?null:n; };
+// デベロッパー：JVの場合は構成会社。社名の言い方をそろえる（fromdb.py / devnorm.py と同じ規則）
+const DEV_ALIAS={"三井不動産レジデンシャル":"三井不動産","三菱地所（旧）":"三菱地所レジデンス","三菱地所":"三菱地所レジデンス","ダイワハウス工業":"大和ハウス工業","独立行政法人都市再生機構":"UR都市機構","総合地所株式会社":"総合地所","旭化成不動産レジデンス":"旭化成不動産レジデンス","旭化成":"旭化成不動産レジデンス","旭化成ホームズ":"旭化成不動産レジデンス","阪急不動産":"阪急阪神不動産","石川島播磨重工業":"IHI","新日鉄都市開発":"日鉄興和不動産","新日鉄興和不動産":"日鉄興和不動産","興和不動産":"日鉄興和不動産","住宅都市整備公団":"UR都市機構","住宅・都市整備公団":"UR都市機構","オリックス・リアルエステート":"オリックス不動産","NIPPOコーポレーション":"NIPPO","東京急行電鉄":"東急","リクルートコスモス":"コスモスイニシア"};
+function nd(x){ x=x.replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); x=x.replace(/[（(].*?[)）]/g,"").trim(); x=x.replace(/株式会社|（株）|\(株\)/g,"").trim(); return DEV_ALIAS[x]||x; }
+const BRANDS=[["ラ・トゥール", "住友不動産"], ["^(ザ・?)?パークタワー|[^ルラ]パークタワー|^パークシティ|パークシティ[^大]|ドックパークシティ|^パークコート|^パークホームズ|^パークマンション|^パークリュクス|^パークアクシス|^パークナード", "三井不動産"], ["パークハウス", "三菱地所レジデンス"], ["^シティ(タワー|ハウス|テラス)|^シティタワーズ|^グランドヒルズ|^セントラルレジデンス", "住友不動産"], ["プラウド", "野村不動産"], ["^ブリリア", "東京建物"], ["^ブランズ", "東急不動産"], ["ライオンズ", "大京"], ["^クラッシィ", "住友商事"], ["^グランドメゾン", "積水ハウス"], ["^プレミスト|^D.?クラディア", "大和ハウス工業"], ["^クレヴィア", "伊藤忠都市開発"], ["^アトラス", "旭化成不動産レジデンス"], ["^コスモ", "コスモスイニシア"], ["^グレーシア", "相鉄不動産"], ["^オーベル", "大成有楽不動産"], ["^ウ[エェ]リス", "NTT都市開発"], ["^ジオ", "阪急阪神不動産"], ["^リビオ|^グランリビオ", "日鉄興和不動産"], ["^ピアース|^ディアナコート", "モリモト"], ["^グランスイート|^ファミール", "丸紅"], ["^クリオ", "明和地所"], ["^ルネ(?!ッサンス)", "総合地所"], ["^シエリア", "関電不動産開発"], ["^ローレル", "近鉄不動産"], ["^サンクタス", "オリックス不動産"], ["^ヴェレーナ", "大和地所レジデンス"], ["^デュオ", "フージャースコーポレーション"], ["^ダイアパレス", "ダイア建設"], ["^シーアイマンション", "伊藤忠商事"], ["^クレストフォルム|^ザ・?クレスト|^クレストシティ", "ゴールドクレスト"], ["^クレッセント", "モリモト"], ["^ル・?サンク", "NIPPO"], ["ヒルズ(レジデンス|フォレスト)|^元麻布ヒルズ|^表参道ヒルズ|^麻布台ヒルズ|^平河町森タワー", "森ビル"]];
+function brand(n){ for(const [p,d] of BRANDS) if(new RegExp(p).test(n||"")) return d; return ""; }
+function devs(O,P,name){ O=(O||"").trim(); P=(P||"").trim(); let L;
+  if(P) L=P.replace(/[（(].*?[)）]/g,"").split(/[、,，]/.test(P)?/[、,，]/:/[・／\/]/).filter(x=>x.trim()).map(nd);
+  else if(O&&O!=="JV") L=[nd(O)]; else if(O==="JV") L=["JV（構成不明）"]; else L=[];
+  const b=brand(name); if(b&&!L.includes(b)) L=L.filter(x=>x!=="JV（構成不明）").concat([b]);
+  return [...new Set(L.filter(Boolean))].join("、"); }
+function ym(v){ const s=String(v??"").trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)); const m=s.match(/^(\d{4})\D+(\d{1,2})/); return m?`${m[1]}-${m[2].padStart(2,"0")}`:null; }
+function csvCell(v){ v=v==null?"":String(v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function download(name,text,type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
+const d=new Date(); $("#date").value=`${d.getFullYear()}年${d.getMonth()+1}月`;
+
+let built=null;
+$("#csv").onchange=async e=>{
+  built=null; $("#make").disabled=true; $("#prev").innerHTML=""; const m=$("#msg1"); m.className="msg"; m.textContent="";
+  const file=e.target.files[0]; if(!file) return;
+  const rows=parseCSV(await file.text()); if(rows.length<2){ m.className="msg ng"; m.textContent="CSV に行がありません。"; return; }
+  const head=rows[0].map(h=>h.trim().replace(/\s+/g,"")), isDB=head.includes("マップID"), need=isDB?NEED_DB:NEED, miss=need.filter(c=>!head.includes(c));
+  if(miss.length){ m.className="msg ng"; m.textContent="見出しに次の列がありません："+miss.join("、")+"\n（DBシートをそのまま CSV で保存したか確認してください）"; return; }
+  const ix=c=>head.indexOf(c), out=[], warn=[]; let nextId=1;
+  for(let r=1;r<rows.length;r++){ const g=c=>ix(c)<0?"":(rows[r][ix(c)]??"").trim();
+    let rec;
+    if(isDB){ if(!g("マップID")||g("管理費")==="") continue;
+      if(/^(false|0|いいえ|×)$/i.test(g("アプリ表示"))) continue;
+      rec={"id":num(g("マップID"))||null,"注目":/^(true|1|はい|○)$/i.test(g("注目")),"マンション名":g("マップ表示名")||g("マンション名"),"区":g("区"),"エリア":g("エリア名"),"竣工年月":ym(g("竣工年月")),
+        "階数":num(g("階数")),"総戸数":num(g("戸数")),"専有面積㎡":num(g("専有面積㎡")),"管理費":num(g("管理費")),"修繕積立金":num(g("修繕積立金")),"備考":g("費用の備考"),"出典URL":g("費用の出典URL"),"デベ":devs(g("デベロッパー"),g("デベロッパー（JVの場合）"),g("マンション名")),"湾岸":/^(true|1|はい|○)$/i.test(g("湾岸")),"町":g("地名")};
+    } else { if(!g("マンション名")) continue;
+      rec={"id":num(g("id"))||null,"注目":/^(true|1|はい|○)$/i.test(g("注目")),"マンション名":g("マンション名"),"区":g("区"),"エリア":g("エリア"),"竣工年月":ym(g("竣工年月")),
+        "階数":num(g("階数")),"総戸数":num(g("総戸数")),"専有面積㎡":num(g("専有面積㎡")),"管理費":num(g("管理費")),"修繕積立金":num(g("修繕積立金")),"備考":g("備考"),"出典URL":g("出典URL")}; }
+    const name=rec["マンション名"];
+    const p=[]; if(!AREAS.includes(rec["エリア"])) p.push("エリア"); if(!rec["竣工年月"]) p.push("竣工年月"); for(const c of ["階数","専有面積㎡","管理費","修繕積立金"]) if(rec[c]===null||rec[c]==="") p.push(c); if(rec["総戸数"]===null) p.push("総戸数");
+    if(p.length) warn.push(`${r+1}行目 ${name}：${p.join("・")}を確認`);
+    out.push(rec); }
+  const used=new Set(out.map(x=>x.id).filter(Boolean)); for(const x of out) if(!x.id){ while(used.has(nextId)) nextId++; x.id=nextId; used.add(nextId); }
+  built={v:1,date:$("#date").value.trim(),cols:COLS,rows:out.map(x=>COLS.map(c=>x[c]??""))};
+  m.className="msg "+(warn.length?"ng":"ok");
+  m.textContent=`${out.length}棟を読み込みました。`+(warn.length?`\n次の行は値が読み取れないため、マップで正しく表示されない可能性があります（${warn.length}件）：\n`+warn.slice(0,30).join("\n")+(warn.length>30?"\n…":""):"");
+  $("#prev").innerHTML="<table><tr>"+COLS.slice(2,11).map(c=>`<th>${c}</th>`).join("")+"</tr>"+out.slice(0,5).map(x=>"<tr>"+COLS.slice(2,11).map(c=>`<td>${String(x[c]??"").replace(/</g,"&lt;")}</td>`).join("")+"</tr>").join("")+"</table><p class='note'>先頭5行の確認用表示</p>";
+  $("#make").disabled=false;
+};
+$("#make").onclick=()=>{ if(!built) return; built.date=$("#date").value.trim(); download("data.js",`window.KR_DATA="${krEncode(built)}";\n`,"text/javascript"); $("#msg1").textContent+= "\n\ndata.js を保存しました。GitHub に上書きアップロードしてください。"; };
+
+let dec=null;
+$("#bin").onchange=async e=>{ dec=null; $("#back").disabled=true; const m=$("#msg2"); m.className="msg"; m.textContent=""; const f=e.target.files[0]; if(!f) return;
+  try{ dec=krDecode(await f.text()); m.className="msg ok"; m.textContent=`${dec.date}時点のデータ・${dec.rows.length}棟を読み込みました。`; $("#back").disabled=false; }
+  catch(err){ m.className="msg ng"; m.textContent="読み込めませんでした："+err.message; } };
+$("#back").onclick=()=>{ if(!dec) return; const csv="﻿"+[dec.cols,...dec.rows].map(r=>r.map(csvCell).join(",")).join("\r\n"); download("kanrihi.csv",csv,"text/csv"); };
+</script>
+</body>
+</html>
