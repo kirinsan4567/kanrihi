@@ -220,6 +220,12 @@ body:not(.has-hist) .lgrev{display:none}
 .ddpanel label.grp{font-weight:700}
 .ddpanel .ddtop{position:sticky;top:-6px;z-index:1;display:flex;gap:14px;padding:6px 12px;margin-top:-6px;background:var(--surface);border-bottom:1px solid var(--line);margin-bottom:4px}
 .ddpanel hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.ddpanel .tgrp+.tgrp{border-top:1px solid var(--line);margin-top:4px;padding-top:4px}
+.ddpanel .tgrp[hidden],.ddpanel label[hidden]{display:none}
+.ddpanel .tgrp label:not(.grp){padding-left:28px}
+#fTownPanel .ddtop{align-items:center}
+@media (max-width:760px){.ddpanel{position:static;margin-top:6px;box-shadow:none;max-height:50vh;width:min(100%,340px)} .dd{width:100%}}
+#fTownQ{font:inherit;font-size:13px;line-height:1.5;height:28px;box-sizing:border-box;flex:1;min-width:0;padding:3px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .ddpanel input{accent-color:var(--accent);width:15px;height:15px;margin:0}
 .tip .tipx{position:absolute;top:2px;right:6px;font:inherit;font-size:14px;background:none;border:0;color:var(--bg);cursor:pointer;padding:2px 4px}
 @media (max-width:760px){
@@ -264,7 +270,7 @@ body:not(.has-hist) .lgrev{display:none}
     <div class="fgroup" role="group" aria-label="総戸数"><span class="flab">戸数</span><span id="fUn"></span></div>
     <div class="fgroup"><button type="button" class="chip" id="f40" aria-pressed="false">40㎡以上</button><button type="button" class="chip" id="fLab" aria-pressed="true">名前を表示</button></div>
     <div class="fgroup"><span class="flab">デベ</span><div class="dd" id="fDev"><button type="button" class="ddbtn" id="fDevBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fDevPanel">すべて</button><div class="ddpanel" id="fDevPanel" role="group" aria-label="デベロッパー" hidden></div></div></div>
-    <span class="qwrap"><span class="flab">町</span><select id="fTown" aria-label="町（地名）"><option value="">すべて</option></select><input type="search" id="q" placeholder="物件名・町名で検索" aria-label="物件名・町名で検索"><span class="seg" role="group" aria-label="町と検索の表示方法" title="町・検索で選んだ物件を、絞り込むか、全体の中でハイライトするか"><button type="button" data-qm="filter" aria-pressed="true">絞り込む</button><button type="button" data-qm="hl" aria-pressed="false">ハイライト</button></span></span>
+    <span class="qwrap"><span class="flab">町</span><div class="dd" id="fTownDd"><button type="button" class="ddbtn" id="fTownBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fTownPanel">すべて</button><div class="ddpanel" id="fTownPanel" role="group" aria-label="町（地名）" hidden></div></div><input type="search" id="q" placeholder="物件名・町名で検索" aria-label="物件名・町名で検索"><span class="seg" role="group" aria-label="町と検索の表示方法" title="町・検索で選んだ物件を、絞り込むか、全体の中でハイライトするか"><button type="button" data-qm="filter" aria-pressed="true">絞り込む</button><button type="button" data-qm="hl" aria-pressed="false">ハイライト</button></span></span>
     <button type="button" class="link" id="reset">条件をリセット</button>
     <button type="button" class="btn fclose" id="fclose">閉じて結果を見る</button>
   </div>
@@ -354,7 +360,7 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const store={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 
 let DATA=[], live=false;
-const F={devs:new Set(),areas:new Set(),ward:"",town:"",type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""};
+const F={devs:new Set(),areas:new Set(),ward:"",towns:new Set(),type:"all",ages:new Set(),qm:"filter",fl:new Set(),un:new Set(),big:false,q:""};
 const FLS=[["20","20〜29階",20,29],["30","30〜39階",30,39],["40","40〜49階",40,49],["50","50階以上",50,999]];
 const UNS=[["s","100戸未満",0,99],["m","100〜299戸",100,299],["l","300〜499戸",300,499],["xl","500〜999戸",500,999],["xxl","1000戸以上",1000,1e9]];
 const BIG_UNITS=1000;
@@ -451,8 +457,12 @@ function buildFilters(){
   $$("[data-area]").forEach(b=>b.onclick=()=>{const a=b.dataset.area; F.areas.has(a)?F.areas.delete(a):F.areas.add(a); b.setAttribute("aria-pressed",F.areas.has(a)); render();});
   $$("[data-type]").forEach(b=>b.onclick=()=>{F.type=b.dataset.type; $$("[data-type]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
   $$("[data-age]").forEach(b=>b.onclick=()=>{const v=b.dataset.age; F.ages.has(v)?F.ages.delete(v):F.ages.add(v); b.setAttribute("aria-pressed",F.ages.has(v)); render();});
-  $("#fWard").onchange=e=>{F.ward=e.target.value; if(F.town&&!F.town.startsWith(F.ward+"|")) F.town=""; fillTown(); render();};
-  $("#fTown").onchange=e=>{F.town=e.target.value; render();};
+  $("#fWard").onchange=e=>{F.ward=e.target.value; if(F.ward) [...F.towns].forEach(k=>{ if(!k.startsWith(F.ward+"|")) F.towns.delete(k); }); fillTown(); render();};
+  { const tp=$("#fTownPanel"), tb=$("#fTownBtn"), tOpen=o=>{ tp.hidden=!o; tb.setAttribute("aria-expanded",o); if(o){ const i=$("#fTownQ"); if(i&&matchMedia("(hover:hover)").matches) i.focus(); } };
+    tb.onclick=e=>{ e.stopPropagation(); tOpen(tp.hidden); };
+    tp.onclick=e=>e.stopPropagation();
+    document.addEventListener("click",()=>tOpen(false));
+    document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!tp.hidden){ tOpen(false); tb.focus(); } }); }
   fillTown();
   const dp=$("#fDevPanel"), db=$("#fDevBtn"), ddOpen=o=>{ dp.hidden=!o; db.setAttribute("aria-expanded",o); };
   db.onclick=e=>{ e.stopPropagation(); ddOpen(dp.hidden); };
@@ -463,7 +473,7 @@ function buildFilters(){
   $("#fLab").onclick=e=>{showLab=!showLab; e.target.setAttribute("aria-pressed",showLab); render();};
   $("#q").oninput=e=>{F.q=e.target.value.trim(); render();};
   $$("[data-qm]").forEach(b=>b.onclick=()=>{F.qm=b.dataset.qm; $$("[data-qm]").forEach(x=>x.setAttribute("aria-pressed",x===b)); render();});
-  $("#reset").onclick=()=>{F.devs.clear();syncDev();F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un],[data-age]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.town="";fillTown();F.type="all";F.ages.clear();F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
+  $("#reset").onclick=()=>{F.devs.clear();syncDev();F.areas.clear();F.fl.clear();F.un.clear();$$("[data-fl],[data-un],[data-age]").forEach(b=>b.setAttribute("aria-pressed",false));F.ward="";F.towns.clear();fillTown();F.type="all";F.ages.clear();F.big=false;F.q="";$("#q").value="";$("#fWard").value="";
     $$("[data-area]").forEach(b=>b.setAttribute("aria-pressed",false));$$("[data-type]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.type==="all"));
     $("#f40").setAttribute("aria-pressed",false);render();};
 }
@@ -478,7 +488,7 @@ function fsum(){
   if(F.fl.size) a.push(FLS.filter(x=>F.fl.has(x[0])).map(x=>x[1]).join("・"));
   if(F.un.size) a.push(UNS.filter(x=>F.un.has(x[0])).map(x=>x[1]).join("・"));
   if(F.big) a.push("40㎡以上");
-  const tw=F.town?F.town.split("|")[1]+(F.ward?"":"（"+F.town.split("|")[0]+"）"):"", qs=[tw,F.q?`「${F.q}」`:""].filter(Boolean).join("・");
+  const tw=F.towns.size?townLabel(true):"", qs=[tw,F.q?`「${F.q}」`:""].filter(Boolean).join("・");
   if(qs) a.push(F.qm==="filter"?qs:`${qs}をハイライト（${DATA.filter(hit).length}棟）`);
   return a.length?a.join("／"):"条件なし";
 }
@@ -489,17 +499,30 @@ function filtered(){ return DATA.filter(x=>devOk(x)&&(!F.areas.size||F.areas.has
 const nq=s=>String(s).normalize("NFKC").toLowerCase().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s・･\-‐－—–_.,、。'’"“”()（）]/g,"");
 function qhit(x){ const q=nq(F.q); return !!q&&(nq(x.name).includes(q)||(!!x.town&&nq(x.town).includes(q))); }
 // 町・検索の両方に合う物件（どちらも未指定なら全物件）
-function hit(x){ return (!F.q||qhit(x))&&(!F.town||x.ward+"|"+x.town===F.town); }
-const hlOn=()=>(!!F.q||!!F.town)&&F.qm==="hl";
+function hit(x){ return (!F.q||qhit(x))&&(!F.towns.size||F.towns.has(x.ward+"|"+x.town)); }
+const hlOn=()=>(!!F.q||F.towns.size>0)&&F.qm==="hl";
 // 町の選択肢：区を選んでいればその区の町だけ。件数つき
-function fillTown(){ const sel=$("#fTown"); if(!sel||!DATA.length) return; const cnt=new Map();
+// 町：デベと同じくチェックボックスで複数選択。区を選んでいればその区の町だけ。区ごとに見出し（区内の町をまとめて選択）。件数つき
+function townLabel(withWard){ const ks=[...F.towns], nm=k=>{const [w,t]=k.split("|"); return withWard&&!F.ward&&new Set(ks.map(x=>x.split("|")[0])).size>1?`${t}（${w}）`:t;};
+  if(!ks.length) return "すべて"; return ks.length<=3?ks.map(nm).join("・"):ks.slice(0,2).map(nm).join("・")+`ほか${ks.length-2}町`; }
+function fillTown(){ const tp=$("#fTownPanel"); if(!tp||!DATA.length) return; const cnt=new Map();
   for(const x of DATA) if(x.town&&(!F.ward||x.ward===F.ward)){ const k=x.ward+"|"+x.town; cnt.set(k,(cnt.get(k)||0)+1); }
-  const wo=w=>{const i=WARDS.indexOf(w); return i<0?99:i;}, keys=[...cnt.keys()].sort((a,b)=>{const [wa,ta]=a.split("|"),[wb,tb]=b.split("|"); return wo(wa)-wo(wb)||wa.localeCompare(wb,"ja")||ta.localeCompare(tb,"ja");});
-  const opt=k=>`<option value="${esc(k)}"${k===F.town?" selected":""}>${esc(k.split("|")[1])}（${cnt.get(k)}）</option>`;
-  let h='<option value="">すべて</option>';
-  if(F.ward) h+=keys.map(opt).join("");
-  else { const g=new Map(); for(const k of keys){ const w=k.split("|")[0]; if(!g.has(w)) g.set(w,[]); g.get(w).push(k); } for(const [w,a] of g) h+=`<optgroup label="${esc(w)}">${a.map(opt).join("")}</optgroup>`; }
-  sel.innerHTML=h; sel.value=F.town; }
+  const wo=w=>{const i=WARDS.indexOf(w); return i<0?99:i;}, g=new Map();
+  [...cnt.keys()].sort((a,b)=>{const [wa,ta]=a.split("|"),[wb,tb]=b.split("|"); return wo(wa)-wo(wb)||wa.localeCompare(wb,"ja")||ta.localeCompare(tb,"ja");})
+    .forEach(k=>{ const w=k.split("|")[0]; if(!g.has(w)) g.set(w,[]); g.get(w).push(k); });
+  let h=`<div class="ddtop"><input type="search" id="fTownQ" placeholder="町名で探す" aria-label="町名で探す"><button type="button" class="link" id="fTownClr">すべて解除</button></div>`;
+  for(const [w,a] of g) h+=`<div class="tgrp" data-tw="${esc(w)}"><label class="grp"><input type="checkbox" data-twall="${esc(w)}">${esc(w)}<span class="n">${a.reduce((s,k)=>s+cnt.get(k),0)}</span></label>`
+    +a.map(k=>`<label data-tn="${esc(nq(k.split("|")[1]))}"><input type="checkbox" data-town="${esc(k)}">${esc(k.split("|")[1])}<span class="n">${cnt.get(k)}</span></label>`).join("")+`</div>`;
+  tp.innerHTML=h;
+  $$("[data-town]").forEach(c=>c.onchange=()=>{ c.checked?F.towns.add(c.dataset.town):F.towns.delete(c.dataset.town); syncTown(); render(); });
+  $$("[data-twall]").forEach(c=>c.onchange=()=>{ const ks=[...c.closest(".tgrp").querySelectorAll("label:not([hidden]) [data-town]")].map(e=>e.dataset.town); ks.forEach(k=>c.checked?F.towns.add(k):F.towns.delete(k)); syncTown(); render(); });
+  $("#fTownClr").onclick=()=>{ F.towns.clear(); syncTown(); render(); };
+  $("#fTownQ").oninput=e=>{ const q=nq(e.target.value); $$("#fTownPanel .tgrp").forEach(gp=>{ let any=false; gp.querySelectorAll("label[data-tn]").forEach(l=>{ const on=!q||l.dataset.tn.includes(q); l.hidden=!on; any=any||on; }); gp.hidden=!any; }); syncTown(); };
+  syncTown(); }
+function syncTown(){
+  $$("[data-town]").forEach(c=>c.checked=F.towns.has(c.dataset.town));
+  $$("[data-twall]").forEach(m=>{ const cs=[...m.closest(".tgrp").querySelectorAll("label:not([hidden]) [data-town]")], n=cs.filter(c=>c.checked).length; m.checked=cs.length>0&&n===cs.length; m.indeterminate=n>0&&n<cs.length; });
+  const b=$("#fTownBtn"); if(b){ b.textContent=townLabel(false); b.title=F.towns.size?townLabel(true):"町（地名）で選ぶ"; } }
 
 /* ===== 描画 ===== */
 const med=a=>{a=a.filter(v=>v!=null&&!isNaN(v)).sort((p,q)=>p-q); if(!a.length)return null; const m=a.length>>1; return Math.round(a.length%2?a[m]:(a[m-1]+a[m])/2);};
